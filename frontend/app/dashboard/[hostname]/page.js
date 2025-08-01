@@ -1,0 +1,52 @@
+import { getLastMetricsByHostname, getAgentHealth } from "@/services/metrics";
+import Link from "next/link";
+
+export default async function HostnameDashboard({ params }) {
+    const hostname = params.hostname;
+
+    const [metricsRes, healthRes] = await Promise.all([
+        getLastMetricsByHostname(hostname),
+        getAgentHealth(hostname)
+    ]);
+    const metrics = metricsRes.data;
+    const health = healthRes.data;
+    const isOnline = health.status === "online"
+
+    return (
+        <div className="backdrop-blur-md bg-white/20 border border-white/30 rounded-2xl shadow-xl px-8 py-6 m-4">
+            <Link className="border border-white/40 rounded-xl p-2 bg-white/30 hover:bg-white/40 text-white" href="/dashboard">← Retour au tableau de bord</Link>
+                <div className="flex items-center justify-center gap-4">
+                    <h1 className="text-white font-semibold text-2xl">Dashboard pour {hostname}</h1>
+                    <span className="relative flex h-6 w-6 items-center justify-center">
+                        {isOnline && (
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        )}
+                        {!isOnline && (
+                            <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-0"></span>
+                        )}
+                        <span
+                            title={isOnline ? "Agent en ligne" : "Hôte injoignable ou agent hors-ligne"}
+                            className={`relative inline-flex w-3 h-3 rounded-full border ${
+                                isOnline
+                                    ? "bg-green-500 border-white shadow-[0_0_8px_2px_rgba(34,197,94,0.7)]"
+                                    : "bg-red-500 border-red-300 shadow-[0_0_8px_2px_rgba(239,68,68,0.7)]"
+                            }`}
+                        ></span>
+                    </span>
+                </div>
+            <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-white/60 to-transparent mb-16 mt-16"></div>
+            <div className="flex flex-col gap-2 text-base text-white/90 items-start">
+                <div className="flex flex-col gap-2 border border-2 border-white/60 bg-white/20 p-4 rounded-lg">
+                    <p className="text-xl"><span className="font-semibold">IP :</span> {metrics?.ip_address || "-"}</p>
+                    <p className="text-xl"><span className="font-semibold">Miner :</span> SRB</p>
+                    <p className="text-xl"><span className="font-semibold">CPU :</span> {metrics?.cpu_utilization ?? "-"}%</p>
+                    <p className="text-xl"><span className="font-semibold">Mémoire :</span> {metrics?.memory_utilization ?? "-"}%</p>
+                    <p className="text-xl"><span className="font-semibold">Disque :</span> {metrics?.disk_usage ?? "-"}%</p>
+                    <p className="text-xs text-white/70">{metrics?.last_seen || ""}</p>
+                    <p className="text-xs text-white/70">Statut : {health?.status || "-"}</p>
+                </div>
+
+            </div>
+        </div>
+    );
+}
