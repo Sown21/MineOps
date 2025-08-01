@@ -4,7 +4,7 @@ from app.database import SessionLocal
 from app.schemas import MetricsIn, MetricsOut
 from app.models import MetricsDB
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, desc
 from typing import List
 import logging
 from datetime import timedelta, datetime, timezone
@@ -112,3 +112,14 @@ def auto_clean(db: Session = Depends(get_db)):
             "auto_clean": True
         }
     return {"status": "no_clean_needed", "oldest": oldest.last_seen.isoformat()}
+
+@app.get("/metrics/history/{hostname}", tags=["Metrics"])
+def get_metrics_history(hostname: str, db: Session = Depends(get_db)):
+    metrics = (
+        db.query(MetricsDB)
+        .filter(MetricsDB.hostname == hostname)
+        .order_by(desc(MetricsDB.last_seen))
+        .limit(50)
+        .all()
+    )
+    return [m.as_dict() for m in metrics]

@@ -14,3 +14,7 @@ export const getLastMetricsByHostname = (hostname) =>
 // Récupérer la santé d'un agent
 export const getAgentHealth = (hostname) =>
     instance.get(`/healthcheck/${hostname}`);
+
+// Récupérer l'historique du hostname
+export const getHostnameHistory = (hostname) =>
+    instance.get(`/metrics/history/${hostname}`);
