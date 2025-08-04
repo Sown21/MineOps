@@ -46,7 +46,7 @@ const AddMiner = () => {
     };
 
     return (
-        <div className="m-16 flex flex-col items-center">
+        <div className="flex flex-col items-center">
             {!showForm ? (
                 <button
                     className="border border-white/40 rounded-xl p-2 bg-white/30 hover:bg-white/40 text-white"

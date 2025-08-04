@@ -11,6 +11,9 @@ const Dashboard = () => {
     const [healthStatus, setHealthStatus] = useState({});
     const [isLoading, setIsLoading] = useState(true);
 
+    const upCount = Object.values(healthStatus).filter(h => h.status === "online").length;
+    const totalCount = hostnames.length;
+
     useEffect(() => {
         const fetchMetrics = async () => {
             try {
@@ -70,7 +73,7 @@ const Dashboard = () => {
     } else if (hostnames.length === 0) {
             return (
         <div className="flex flex-col items-center justify-center">
-            <p className="text-red-600 m-4 font-semibold">Aucune machine détectée, veuillez en ajouter une.</p>
+            <p className="text-red-600 mt-4 font-semibold">Aucune machine détectée, veuillez en ajouter une.</p>
             <AddMiner />
         </div>
         );
@@ -78,8 +81,14 @@ const Dashboard = () => {
 
     return (
         <div className="">
-            <div className="flex justify-start">
+            <div className="flex justify-between items-baseline mb-6 px-8">
                 <AddMiner />
+                <h1 className="text-white font-bold m-12 text-4xl underline">Dashboard</h1>
+                <div className={`px-8 border rounded-xl ${
+                    upCount < totalCount ? "border-red-500 backdrop-blur-md bg-white/20" : "border-green-500 backdrop-blur-md bg-white/20"
+                }`}>
+                    <span className={upCount < totalCount ? "text-red-500 font-semibold" : "text-green-500 font-semibold"}>Machines UP: {upCount}/{totalCount}</span>
+                </div>
             </div>
             <div className="flex flex-wrap justify-center gap-4 items-start">
                 {hostnames.map(hostname => (
