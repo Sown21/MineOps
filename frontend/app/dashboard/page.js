@@ -63,7 +63,6 @@ const Dashboard = () => {
 
     return (
         <div className="">
-            <h1>Dashboard</h1>
             <div className="flex flex-wrap justify-center gap-4 items-start">
                 {hostnames.map(hostname => (
                     <Card 
