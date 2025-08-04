@@ -25,3 +25,8 @@ class MetricsOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class InstallMiner(BaseModel):
+    ip_address: str
+    user: str
+    password: str

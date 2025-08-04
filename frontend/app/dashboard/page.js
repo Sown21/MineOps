@@ -78,7 +78,9 @@ const Dashboard = () => {
 
     return (
         <div className="">
-            <AddMiner />
+            <div className="flex justify-start">
+                <AddMiner />
+            </div>
             <div className="flex flex-wrap justify-center gap-4 items-start">
                 {hostnames.map(hostname => (
                     <Card 

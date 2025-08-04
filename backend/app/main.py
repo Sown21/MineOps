@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import SessionLocal
-from app.schemas import MetricsIn, MetricsOut
+from app.schemas import MetricsIn, MetricsOut, InstallMiner
 from app.models import MetricsDB
 from sqlalchemy.orm import Session
 from sqlalchemy import text, desc
@@ -9,6 +9,7 @@ from typing import List
 import logging
 from datetime import timedelta, datetime, timezone
 import subprocess
+import os
 
 app = FastAPI(title="Metrics MineOps", 
               description="API MineOps",
@@ -126,14 +127,24 @@ def get_metrics_history(hostname: str, db: Session = Depends(get_db)):
     )
     return [m.as_dict() for m in metrics]
 
+from fastapi import HTTPException
+
 @app.post("/add-miner", tags=["Installation"])
-async def add_miner(data: MetricsIn):
+async def add_miner(data: InstallMiner):
     ip = data.ip_address
+    user = data.user
+    password = data.password
+    script_path = os.path.expanduser("~/MineOps/backend/utils/install_miner.sh")
     result = subprocess.run(
-        ["~/MineOps/backend/utils/install_new_machine.sh", ip],
+        [script_path, ip, user, password],
         capture_output=True,
         text=True
     )
     if result.returncode != 0:
-        return {"error": result.stderr}
-    return {"output": result.stdout}
+        print("STDERR:", result.stderr)
+        print("STDOUT:", result.stdout)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de l'installation : {result.stderr.strip() or result.stdout.strip()}"
+        )
+    return {"output": result.stdout.strip()}
