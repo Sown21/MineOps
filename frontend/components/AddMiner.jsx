@@ -3,12 +3,14 @@ import { useState } from "react";
 const AddMiner = () => {
     const [showForm, setShowForm] = useState(false);
     const [ip, setIp] = useState("");
+    const [user, setUser] = useState("");
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        // Ajoute ici la logique pour ajouter la machine avec l'IP
-        alert(`Machine ajoutée avec l'IP : ${ip}`);
+        // Ajoute ici la logique pour ajouter la machine avec l'IP et le user
+        alert(`Machine ajoutée avec l'IP : ${ip} et l'utilisateur : ${user}`);
         setIp("");
+        setUser("");
         setShowForm(false);
     };
 
@@ -28,6 +30,14 @@ const AddMiner = () => {
                         placeholder="Adresse IP"
                         value={ip}
                         onChange={e => setIp(e.target.value)}
+                        className="p-2 rounded bg-white/20 text-white border border-white/40"
+                        required
+                    />
+                    <input
+                        type="text"
+                        placeholder="Utilisateur"
+                        value={user}
+                        onChange={e => setUser(e.target.value)}
                         className="p-2 rounded bg-white/20 text-white border border-white/40"
                         required
                     />
