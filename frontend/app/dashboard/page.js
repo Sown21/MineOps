@@ -70,7 +70,7 @@ const Dashboard = () => {
     } else if (hostnames.length === 0) {
             return (
         <div className="flex flex-col items-center justify-center">
-            <p className="text-red-600 m-4">Aucune machine détectée, veuillez en ajouter une.</p>
+            <p className="text-red-600 m-4 font-semibold">Aucune machine détectée, veuillez en ajouter une.</p>
             <AddMiner />
         </div>
         );

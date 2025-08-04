@@ -8,6 +8,7 @@ from sqlalchemy import text, desc
 from typing import List
 import logging
 from datetime import timedelta, datetime, timezone
+import subprocess
 
 app = FastAPI(title="Metrics MineOps", 
               description="API MineOps",
@@ -15,6 +16,7 @@ app = FastAPI(title="Metrics MineOps",
                   {"name": "Metrics", "description": "Gestion des métriques"},
                   {"name": "Maintenance", "description": "Nettoyage et maintenance de la base"},
                   {"name": "Health", "description": "Statut des agents"},
+                  {"name": "Installation", "description": "Installation/Setup Machine"},
               ])
 
 app.add_middleware(
@@ -123,3 +125,15 @@ def get_metrics_history(hostname: str, db: Session = Depends(get_db)):
         .all()
     )
     return [m.as_dict() for m in metrics]
+
+@app.post("/add-miner", tags=["Installation"])
+async def add_miner(data: MetricsIn):
+    ip = data.ip_address
+    result = subprocess.run(
+        ["~/MineOps/backend/utils/install_new_machine.sh", ip],
+        capture_output=True,
+        text=True
+    )
+    if result.returncode != 0:
+        return {"error": result.stderr}
+    return {"output": result.stdout}
