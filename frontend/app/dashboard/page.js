@@ -3,11 +3,13 @@
 import { useState, useEffect } from "react";
 import Card from "@/components/Card";
 import { getLastMetricsByHostname, getMetrics, getAgentHealth } from "@/services/metrics";
+import AddMiner from "@/components/AddMiner";
 
 const Dashboard = () => {
     const [hostnames, setHostnames] = useState([]);
     const [latestMetrics, setLatestMetrics] = useState({});
     const [healthStatus, setHealthStatus] = useState({});
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchMetrics = async () => {
@@ -39,7 +41,13 @@ const Dashboard = () => {
                 setHealthStatus(healthData);
 
             } catch (error) {
-                console.error("Error fetching metrics:", error);
+                if (error.response?.status === 404) {
+                    setHostnames([]);
+                } else {
+                    console.error("Error fetching metrics:", error);
+                }
+            } finally {
+                setIsLoading(false);
             }
         };
 
@@ -50,7 +58,7 @@ const Dashboard = () => {
         return () => clearInterval(interval);
     }, []);
 
-    if (Object.keys(latestMetrics).length === 0) {
+    if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <div className="border border-gray-400 bg-gray-100 rounded-lg px-8 py-6 text-center">
@@ -59,10 +67,18 @@ const Dashboard = () => {
                 </div>
             </div>
         );
+    } else if (hostnames.length === 0) {
+            return (
+        <div className="flex flex-col items-center justify-center">
+            <p className="text-red-600 m-4">Aucune machine détectée, veuillez en ajouter une.</p>
+            <AddMiner />
+        </div>
+        );
     }
 
     return (
         <div className="">
+            <AddMiner />
             <div className="flex flex-wrap justify-center gap-4 items-start">
                 {hostnames.map(hostname => (
                     <Card 
