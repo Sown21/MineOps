@@ -1,0 +1,57 @@
+- hosts: all
+  become: true
+  vars:
+    agent_src: ~/MineOps/backend/app/agent/agent.py
+    agent_dest: /usr/local/bin/agent.py
+    requirements_src: ~/MineOps/backend/app/agent/requirements.txt
+    requirements_dest: /usr/local/bin/requirements.txt
+    service_name: mineops-agent
+  tasks:
+    - name: Installer pip si nécessaire
+      apt:
+        name: python3-pip
+        state: present
+
+    - name: Copier l'agent sur la machine distante
+      copy:
+        src: "{{ agent_src }}"
+        dest: "{{ agent_dest }}"
+        mode: '0755'
+
+    - name: Copier le requirements.txt sur la machine distante
+      copy:
+        src: "{{ requirements_src }}"
+        dest: "{{ requirements_dest }}"
+        mode: '0644'
+
+    - name: Installer les dépendances Python
+      pip:
+        requirements: "{{ requirements_dest }}"
+        executable: pip3
+
+    - name: Créer le fichier systemd pour l'agent
+      copy:
+        dest: /etc/systemd/system/{{ service_name }}.service
+        content: |
+          [Unit]
+          Description=MineOps Agent
+          After=network.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/python3 {{ agent_dest }}
+          Restart=always
+          User=root
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Recharger systemd si le service a changé
+      command: systemctl daemon-reload
+      become: true
+
+    - name: Activer et démarrer l'agent
+      systemd:
+        name: "{{ service_name }}"
+        enabled: yes
+        state: started
