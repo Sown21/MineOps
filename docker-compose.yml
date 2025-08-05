@@ -15,4 +15,6 @@ services:
     build: ./backend
     ports: 
       - "8000:8000"
+    volumes:
+      - /mineops/data:/app/data
     restart: always
