@@ -55,7 +55,14 @@ export default function HostnameDashboard() {
         );
     }
 
-    const labels = history.map(h => new Date(h.timestamp).toLocaleTimeString());
+    const labels = history.map(h => {
+        const date = new Date(h.last_seen);
+        
+        return date.toLocaleTimeString('fr-FR', { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        });
+    });
     const cpuValues = history.map(h => h.cpu_utilization);
     const memoryValues = history.map(h => h.memory_utilization);
     const diskValues = history.map(h => h.disk_usage);

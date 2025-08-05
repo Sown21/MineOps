@@ -21,7 +21,7 @@ class MetricsOut(BaseModel):
 
     @field_serializer("last_seen")
     def serialize_last_seen(self, value: datetime, _info):
-        return value.strftime("%Y-%m-%d_%H:%M:%S")
+        return value.isoformat()
 
     class Config:
         from_attributes = True
