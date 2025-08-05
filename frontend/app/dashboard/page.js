@@ -68,29 +68,6 @@ const Dashboard = () => {
         return () => clearInterval(interval);
     }, []);
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <div className="glass-card px-8 py-6 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
-                    <p className="text-white/90">Chargement des métriques...</p>
-                </div>
-            </div>
-        );
-    }
-
-    if (hostnames.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
-                <div className="glass-card px-8 py-6 text-center">
-                    <p className="text-white/90 text-lg mb-4">Aucune machine détectée</p>
-                    <p className="text-white/70 mb-6">Veuillez ajouter une machine pour commencer</p>
-                    <AddMiner ref={addMinerRef} />
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="px-4">
             {/* Header avec actions */}
@@ -103,30 +80,50 @@ const Dashboard = () => {
                     <div className="flex flex-col sm:flex-row items-center gap-4">
                         <AddMiner ref={addMinerRef} />
                         
-                        <div className={`px-6 py-3 border rounded-xl backdrop-blur-md bg-white/20 ${
-                            upCount < totalCount ? "border-red-400" : "border-green-400"
-                        }`}>
-                            <span className={`font-semibold ${
-                                upCount < totalCount ? "text-red-400" : "text-green-400"
+                        {!isLoading && (
+                            <div className={`px-6 py-3 border rounded-xl backdrop-blur-md bg-white/20 ${
+                                upCount < totalCount ? "border-red-400" : "border-green-400"
                             }`}>
-                                Machines UP: {upCount}/{totalCount}
-                            </span>
-                        </div>
+                                <span className={`font-semibold ${
+                                    upCount < totalCount ? "text-red-400" : "text-green-400"
+                                }`}>
+                                    Machines UP: {upCount}/{totalCount}
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
 
-            {/* Grille des cartes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {hostnames.map(hostname => (
-                    <Card 
-                        key={hostname}
-                        hostname={hostname}
-                        metrics={latestMetrics[hostname]}
-                        health={healthStatus[hostname]}
-                    />
-                ))}
-            </div>
+            {/* Contenu dynamique selon l'état */}
+            {isLoading ? (
+                <div className="flex items-center justify-center py-20">
+                    <div className="glass-card px-8 py-6 text-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                        <p className="text-white/90">Chargement des métriques...</p>
+                    </div>
+                </div>
+            ) : hostnames.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                    <div className="glass-card px-8 py-6 text-center">
+                        <p className="text-white/90 text-lg mb-4">Aucune machine détectée</p>
+                        <p className="text-white/70 mb-6">Veuillez ajouter une machine pour commencer</p>
+                        <AddMiner ref={addMinerRef} />
+                    </div>
+                </div>
+            ) : (
+                /* Grille des cartes */
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {hostnames.map(hostname => (
+                        <Card 
+                            key={hostname}
+                            hostname={hostname}
+                            metrics={latestMetrics[hostname]}
+                            health={healthStatus[hostname]}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     )
 }
