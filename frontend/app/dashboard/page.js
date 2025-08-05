@@ -17,12 +17,10 @@ const Dashboard = () => {
     useEffect(() => {
         const fetchMetrics = async () => {
             try {
-                // Récupérer tous les hostnames uniques
                 const response = await getMetrics();
                 const uniqueHostnames = [...new Set(response.data.map(metric => metric.hostname))];
                 setHostnames(uniqueHostnames);
 
-                // Récupérer les dernières métriques et le healthcheck pour chaque hostname
                 const latestData = {};
                 const healthData = {};
 
@@ -31,7 +29,6 @@ const Dashboard = () => {
                         const latestResponse = await getLastMetricsByHostname(hostname);
                         latestData[hostname] = latestResponse.data;
 
-                        // Récupérer le healthcheck
                         try {
                             const healthResponse = await getAgentHealth(hostname);
                             healthData[hostname] = healthResponse.data;
@@ -55,42 +52,58 @@ const Dashboard = () => {
         };
 
         fetchMetrics();
-
         const interval = setInterval(fetchMetrics, 30000);
-
         return () => clearInterval(interval);
     }, []);
 
     if (isLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
-                <div className="border border-gray-400 bg-gray-100 rounded-lg px-8 py-6 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
-                    <p className="text-gray-700">Chargement des métriques...</p>
+                <div className="glass-card px-8 py-6 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                    <p className="text-white/90">Chargement des métriques...</p>
                 </div>
             </div>
         );
-    } else if (hostnames.length === 0) {
-            return (
-        <div className="flex flex-col items-center justify-center">
-            <p className="text-red-600 mt-4 font-semibold">Aucune machine détectée, veuillez en ajouter une.</p>
-            <AddMiner />
-        </div>
+    }
+
+    if (hostnames.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+                <div className="glass-card px-8 py-6 text-center">
+                    <p className="text-white/90 text-lg mb-4">Aucune machine détectée</p>
+                    <p className="text-white/70 mb-6">Veuillez ajouter une machine pour commencer</p>
+                    <AddMiner />
+                </div>
+            </div>
         );
     }
 
     return (
-        <div className="">
-            <div className="flex justify-between items-baseline mb-6 px-8">
-                <AddMiner />
-                <h1 className="text-white font-bold m-12 text-4xl underline">Dashboard</h1>
-                <div className={`px-8 border rounded-xl ${
-                    upCount < totalCount ? "border-red-500 backdrop-blur-md bg-white/20" : "border-green-500 backdrop-blur-md bg-white/20"
-                }`}>
-                    <span className={upCount < totalCount ? "text-red-500 font-semibold" : "text-green-500 font-semibold"}>Machines UP: {upCount}/{totalCount}</span>
+        <div className="px-4">
+            {/* Header avec actions */}
+            <div className="glass-card p-6 mb-8">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <AddMiner />
+                    
+                    <h1 className="text-white font-bold text-3xl md:text-4xl text-center">
+                        Dashboard
+                    </h1>
+                    
+                    <div className={`px-6 py-3 border rounded-xl backdrop-blur-md bg-white/20 ${
+                        upCount < totalCount ? "border-red-400" : "border-green-400"
+                    }`}>
+                        <span className={`font-semibold ${
+                            upCount < totalCount ? "text-red-400" : "text-green-400"
+                        }`}>
+                            Machines UP: {upCount}/{totalCount}
+                        </span>
+                    </div>
                 </div>
             </div>
-            <div className="flex flex-wrap justify-center gap-4 items-start">
+
+            {/* Grille des cartes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {hostnames.map(hostname => (
                     <Card 
                         key={hostname}

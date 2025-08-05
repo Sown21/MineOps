@@ -15,20 +15,20 @@ const AddMiner = () => {
         setLoading(true);
         setSuccess("");
         setError("");
+        
         try {
             const res = await addMiner(ip, user, pwd);
             if (res.data.error) {
                 setError(res.data.error);
             } else {
                 setSuccess("Installation réussie !");
-                setShowForm(false);
+                setTimeout(() => setShowForm(false), 2000);
             }
         } catch (err) {
             console.error("Erreur lors de l'installation :", err);
             setError(
                 err?.response?.data?.error ||
                 err?.message ||
-                JSON.stringify(err) ||
                 "Erreur lors de l'installation."
             );
         } finally {
@@ -49,66 +49,84 @@ const AddMiner = () => {
         <div className="flex flex-col items-center">
             {!showForm ? (
                 <button
-                    className="border border-white/40 rounded-xl p-2 bg-white/30 hover:bg-white/40 text-white"
+                    className="glass-button font-medium"
                     onClick={() => setShowForm(true)}
                 >
-                    Ajouter une machine
+                    + Ajouter une machine
                 </button>
             ) : (
-                <form onSubmit={handleSubmit} className="flex flex-col items-center gap-4 w-80">
-                    <input
-                        type="text"
-                        placeholder="Adresse IP"
-                        value={ip}
-                        onChange={e => setIp(e.target.value)}
-                        className="p-2 rounded bg-white/20 text-white border border-white/40"
-                        required
-                        disabled={loading}
-                    />
-                    <input
-                        type="text"
-                        placeholder="Utilisateur"
-                        value={user}
-                        onChange={e => setUser(e.target.value)}
-                        className="p-2 rounded bg-white/20 text-white border border-white/40"
-                        required
-                        disabled={loading}
-                    />
-                    <input
-                        type="text"
-                        placeholder="Mot de passe"
-                        value={pwd}
-                        onChange={e => setPwd(e.target.value)}
-                        className="p-2 rounded bg-white/20 text-white border border-white/40"
-                        required
-                        disabled={loading}
-                    />
-                    {loading && (
-                        <div className="flex items-center gap-2 text-blue-500">
-                            <span className="animate-spin h-5 w-5 border-b-2 border-blue-500 rounded-full inline-block"></span>
-                            Installation en cours...
+                <div className="glass-card p-6 w-80">
+                    <h3 className="text-white font-semibold text-lg mb-4 text-center">
+                        Ajouter une machine
+                    </h3>
+                    
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <input
+                            type="text"
+                            placeholder="Adresse IP"
+                            value={ip}
+                            onChange={e => setIp(e.target.value)}
+                            className="glass-input w-full"
+                            required
+                            disabled={loading}
+                        />
+                        <input
+                            type="text"
+                            placeholder="Utilisateur"
+                            value={user}
+                            onChange={e => setUser(e.target.value)}
+                            className="glass-input w-full"
+                            required
+                            disabled={loading}
+                        />
+                        <input
+                            type="password"
+                            placeholder="Mot de passe"
+                            value={pwd}
+                            onChange={e => setPwd(e.target.value)}
+                            className="glass-input w-full"
+                            required
+                            disabled={loading}
+                        />
+                        
+                        {loading && (
+                            <div className="flex items-center justify-center gap-2 text-blue-400 py-2">
+                                <span className="animate-spin h-4 w-4 border-b-2 border-blue-400 rounded-full"></span>
+                                <span className="text-sm">Installation en cours...</span>
+                            </div>
+                        )}
+                        
+                        {success && (
+                            <div className="text-green-400 text-center py-2 font-medium">
+                                {success}
+                            </div>
+                        )}
+                        
+                        {error && (
+                            <div className="text-red-400 text-center py-2 text-sm">
+                                {error}
+                            </div>
+                        )}
+                        
+                        <div className="flex gap-3 pt-2">
+                            <button
+                                type="submit"
+                                className="glass-button-success flex-1 font-medium"
+                                disabled={loading}
+                            >
+                                Valider
+                            </button>
+                            <button
+                                type="button"
+                                className="glass-button-danger flex-1 font-medium"
+                                onClick={handleCloseForm}
+                                disabled={loading}
+                            >
+                                Annuler
+                            </button>
                         </div>
-                    )}
-                    {success && <p className="text-green-500">{succes}</p>}
-                    {error && <p className="text-red-500">{error}</p>}
-                    <div className="flex gap-4">
-                        <button
-                            type="submit"
-                            className="border border-white/40 rounded-xl p-2 bg-white/30 hover:bg-white/40 text-white"
-                            disabled={loading}
-                        >
-                            Valider
-                        </button>
-                        <button
-                            type="button"
-                            className="border border-red-400 rounded-xl p-2 bg-red-300 hover:bg-red-400 text-white"
-                            onClick={handleCloseForm}
-                            disabled={loading}
-                        >
-                            Retour
-                        </button>
-                    </div>
-                </form>
+                    </form>
+                </div>
             )}
         </div>
     );

@@ -1,81 +1,141 @@
 "use client"
 
-import { useEffect, useState } from "react";
-import { getLastMetricsByHostname, getAgentHealth } from "@/services/metrics";
-import Link from "next/link";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 import Chart from "@/components/Chart";
-import { getHostnameHistory } from "@/services/metrics";
+import { getHostnameHistory, getLastMetricsByHostname, getAgentHealth } from "@/services/metrics";
 
 export default function HostnameDashboard() {
-    const params = useParams();
-    const hostname = params.hostname;
-
+    const { hostname } = useParams();
     const [metrics, setMetrics] = useState(null);
     const [health, setHealth] = useState(null);
-
     const [history, setHistory] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    const isOnline = health?.status === "online";
 
     useEffect(() => {
-        if (!hostname) return;
-        getLastMetricsByHostname(hostname).then(res => setMetrics(res.data));
-        getAgentHealth(hostname).then(res => setHealth(res.data));
-        getHostnameHistory(hostname).then(res => setHistory(res.data));
+        const fetchData = async () => {
+            try {
+                const [metricsRes, historyRes] = await Promise.all([
+                    getLastMetricsByHostname(hostname),
+                    getHostnameHistory(hostname)
+                ]);
+
+                setMetrics(metricsRes.data);
+                setHistory(historyRes.data);
+
+                try {
+                    const healthRes = await getAgentHealth(hostname);
+                    setHealth(healthRes.data);
+                } catch (e) {
+                    setHealth({ status: "offline" });
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchData();
+        const interval = setInterval(fetchData, 30000);
+        return () => clearInterval(interval);
     }, [hostname]);
 
-    if (!metrics || !health || !history.length) {
-        return <div>Chargement...</div>;
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="glass-card px-8 py-6 text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400 mx-auto mb-4"></div>
+                    <p className="text-white/90">Chargement des données...</p>
+                </div>
+            </div>
+        );
     }
 
-    const isOnline = health.status === "online";
-    const labels = history.map(m => new Date(m.last_seen).toLocaleTimeString()).reverse();
-    const memValues = history.map(m => m.memory_utilization).reverse();
-    const cpuValues = history.map(m => m.cpu_utilization).reverse();
+    const labels = history.map(h => new Date(h.timestamp).toLocaleTimeString());
+    const cpuValues = history.map(h => h.cpu_utilization);
+    const memoryValues = history.map(h => h.memory_utilization);
+    const diskValues = history.map(h => h.disk_usage);
 
     return (
-        <div className="backdrop-blur-md bg-white/20 border border-white/30 rounded-2xl shadow-xl px-8 py-6 m-4">
-            <Link className="border border-white/40 rounded-xl p-2 bg-white/30 hover:bg-white/40 text-white" href="/dashboard">← Retour au tableau de bord</Link>
-            <div className="flex items-center justify-center gap-4">
-                <h1 className="text-white font-semibold text-2xl">Dashboard pour {hostname}</h1>
-                <span className="relative flex h-6 w-6 items-center justify-center">
-                    {isOnline && (
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    )}
-                    {!isOnline && (
-                        <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-0"></span>
-                    )}
-                    <span
-                        title={isOnline ? "Agent en ligne" : "Hôte injoignable ou agent hors-ligne"}
-                        className={`relative inline-flex w-3 h-3 rounded-full border ${
-                            isOnline
-                                ? "bg-green-500 border-white shadow-[0_0_8px_2px_rgba(34,197,94,0.7)]"
-                                : "bg-red-500 border-red-300 shadow-[0_0_8px_2px_rgba(239,68,68,0.7)]"
-                        }`}
-                    ></span>
-                </span>
+        <div className="px-4">
+            {/* Header */}
+            <div className="glass-card p-6 mb-8">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <Link className="glass-button" href="/dashboard">
+                        ← Retour au dashboard
+                    </Link>
+                    
+                    <div className="flex items-center gap-4">
+                        <h1 className="text-white font-bold text-2xl md:text-3xl">
+                            Dashboard - {hostname}
+                        </h1>
+                        <div className="relative flex h-8 w-8 items-center justify-center">
+                            {isOnline && (
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                            )}
+                            <span
+                                title={isOnline ? "Agent en ligne" : "Hôte injoignable ou agent hors-ligne"}
+                                className={`relative inline-flex w-4 h-4 rounded-full border ${
+                                    isOnline ? "status-indicator-online" : "status-indicator-offline"
+                                }`}
+                            ></span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div className="flex flex-col md:flex-row gap-2 text-base text-white/90 items-start">
-                {/* <div className="flex flex-col gap-2 border border-2 border-white/60 bg-white/20 p-4 rounded-lg min-w-[180px] max-w-xs w-full md:w-auto">
-                    <p className="text-xl"><span className="font-semibold">IP :</span> {metrics?.ip_address || "-"}</p>
-                    <p className="text-xl"><span className="font-semibold">Miner :</span> SRB</p>
-                    <p className="text-xl"><span className="font-semibold">CPU :</span> {metrics?.cpu_utilization ?? "-"}%</p>
-                    <p className="text-xl"><span className="font-semibold">Mémoire :</span> {metrics?.memory_utilization ?? "-"}%</p>
-                    <p className="text-xl"><span className="font-semibold">Disque :</span> {metrics?.disk_usage ?? "-"}%</p>
-                    <p className="text-xs text-white/70">{metrics?.last_seen || ""}</p>
-                    <p className="text-xs text-white/70">Statut : {health?.status || "-"}</p>
-                </div> */}
-                <div className="backdrop-blur-2xl bg-black/40 grid grid-cols-1 md:grid-cols-2 gap-4 border border-2 border-white/60 flex-1 p-4 rounded-lg w-full mt-8">
-                    <h2 className="mt-4 font-semibold text-lg text-center col-span-1 md:col-span-2">Hardware Infos</h2>
-                    <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-white/60 to-transparent mb-4 mt-4 text-center col-span-2"></div>
-                    <div className="w-full">
-                        <Chart title="Mémoire (%)" labels={labels} values={memValues} color="#5ca3fa" />
+
+            {/* Métriques actuelles */}
+            <div className="glass-card p-6 mb-8">
+                <h2 className="text-white font-semibold text-xl mb-4">Métriques actuelles</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="bg-white/10 rounded-lg p-4">
+                        <p className="text-white/70 text-sm">IP</p>
+                        <p className="text-white font-semibold text-lg">{metrics?.ip_address || "-"}</p>
                     </div>
-                    <div className="w-full">
-                        <Chart title="CPU (%)" labels={labels} values={cpuValues} color="#f87171" />
+                    <div className="bg-white/10 rounded-lg p-4">
+                        <p className="text-white/70 text-sm">Miner</p>
+                        <p className="text-white font-semibold text-lg">SRB</p>
                     </div>
-                    <div className="w-full">
-                        <Chart title="Disque (%)" labels={labels} values={cpuValues} color="#76f871ff" />
+                    <div className="bg-white/10 rounded-lg p-4">
+                        <p className="text-white/70 text-sm">CPU</p>
+                        <p className="text-white font-semibold text-lg">{metrics?.cpu_utilization ?? "-"}%</p>
                     </div>
+                    <div className="bg-white/10 rounded-lg p-4">
+                        <p className="text-white/70 text-sm">Mémoire</p>
+                        <p className="text-white font-semibold text-lg">{metrics?.memory_utilization ?? "-"}%</p>
+                    </div>
+                    <div className="bg-white/10 rounded-lg p-4">
+                        <p className="text-white/70 text-sm">Disque</p>
+                        <p className="text-white font-semibold text-lg">{metrics?.disk_usage ?? "-"}%</p>
+                    </div>
+                    <div className="bg-white/10 rounded-lg p-4">
+                        <p className="text-white/70 text-sm">Statut</p>
+                        <p className={`font-semibold text-lg ${isOnline ? "text-green-400" : "text-red-400"}`}>
+                            {health?.status || "-"}
+                        </p>
+                    </div>
+                </div>
+                {metrics?.last_seen && (
+                    <p className="text-white/60 text-sm mt-4 text-center">
+                        Dernière mise à jour : {metrics.last_seen}
+                    </p>
+                )}
+            </div>
+
+            {/* Graphiques */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="glass-card p-6">
+                    <Chart title="CPU (%)" labels={labels} values={cpuValues} color="#5ca3fa" />
+                </div>
+                <div className="glass-card p-6">
+                    <Chart title="Mémoire (%)" labels={labels} values={memoryValues} color="#76f871" />
+                </div>
+                <div className="glass-card p-6">
+                    <Chart title="Disque (%)" labels={labels} values={diskValues} color="#f59e0b" />
                 </div>
             </div>
         </div>
