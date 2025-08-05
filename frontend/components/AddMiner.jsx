@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useImperativeHandle, forwardRef } from "react";
 import { addMiner } from "@/services/install";
 
-const AddMiner = () => {
+const AddMiner = forwardRef((props, ref) => {
     const [showForm, setShowForm] = useState(false);
     const [ip, setIp] = useState("");
     const [user, setUser] = useState("");
@@ -9,6 +9,12 @@ const AddMiner = () => {
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState("");
     const [error, setError] = useState("");
+    const [showWaitingMessage, setShowWaitingMessage] = useState(false);
+
+    // Exposer la fonction pour masquer le message d'attente
+    useImperativeHandle(ref, () => ({
+        hideWaitingMessage: () => setShowWaitingMessage(false)
+    }));
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -22,7 +28,16 @@ const AddMiner = () => {
                 setError(res.data.error);
             } else {
                 setSuccess("Installation réussie !");
-                setTimeout(() => setShowForm(false), 2000);
+                setTimeout(() => {
+                    setShowForm(false);
+                    setShowWaitingMessage(true);
+                    // Nettoyer le formulaire
+                    setIp("");
+                    setUser("");
+                    setPwd("");
+                    setSuccess("");
+                    setError("");
+                }, 2000);
             }
         } catch (err) {
             console.error("Erreur lors de l'installation :", err);
@@ -47,7 +62,17 @@ const AddMiner = () => {
 
     return (
         <div className="flex flex-col items-center">
-            {!showForm ? (
+            {showWaitingMessage ? (
+                <div className="glass-card p-4 text-center">
+                    <div className="flex items-center justify-center gap-2 text-blue-400 mb-2">
+                        <span className="animate-spin h-4 w-4 border-b-2 border-blue-400 rounded-full"></span>
+                        <span className="text-sm font-medium">Machine en cours d'ajout...</span>
+                    </div>
+                    <p className="text-white/70 text-xs">
+                        La machine apparaîtra sous peu dans le dashboard
+                    </p>
+                </div>
+            ) : !showForm ? (
                 <button
                     className="glass-button font-medium"
                     onClick={() => setShowForm(true)}
@@ -130,6 +155,8 @@ const AddMiner = () => {
             )}
         </div>
     );
-};
+});
+
+AddMiner.displayName = 'AddMiner';
 
 export default AddMiner;
