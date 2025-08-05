@@ -23,7 +23,7 @@ if [ $SSH_COPY_ID_EXIT -ne 0 ] || [ $SSH_EXIT -ne 0 ]; then
     exit 1
 fi
 
-ansible-playbook ~/MineOps/backend/playbook/deploy_agent.yml \
+ansible-playbook "$(dirname "$0")/../playbook/deploy_agent.yml" \
     -i "$IP," \
     -u "$USER" \
     -e 'ansible_ssh_common_args="-o StrictHostKeyChecking=no"'

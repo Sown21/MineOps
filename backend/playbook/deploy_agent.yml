@@ -1,9 +1,9 @@
 - hosts: all
   become: true
   vars:
-    agent_src: ~/MineOps/backend/app/agent/agent.py
+    agent_src: ../app/agent/agent.py
     agent_dest: /usr/local/bin/agent.py
-    requirements_src: ~/MineOps/backend/app/agent/requirements.txt
+    requirements_src: ../app/agent/requirements.txt
     requirements_dest: /usr/local/bin/requirements.txt
     service_name: mineops-agent
   tasks:
