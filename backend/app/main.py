@@ -134,7 +134,7 @@ async def add_miner(data: InstallMiner):
     ip = data.ip_address
     user = data.user
     password = data.password
-    script_path = os.path.expanduser("~/MineOps/backend/utils/install_agent.sh")
+    script_path = os.path.join(os.getcwd(), "utils/install_agent.sh")
     result = subprocess.run(
         [script_path, ip, user, password],
         capture_output=True,
