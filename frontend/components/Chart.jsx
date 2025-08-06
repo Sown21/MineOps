@@ -65,7 +65,6 @@ const Chart = ({ title, labels, values, color = "#5ca3fa", maxPoints = 72, perio
                 ticks: {
                     color: "#fff",
                     maxTicksLimit: getTicksCount(period),
-                    // Supprimer le callback personnalisé et laisser Chart.js gérer automatiquement
                 },
             },
             y: {
