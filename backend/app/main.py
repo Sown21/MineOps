@@ -117,15 +117,46 @@ def auto_clean(db: Session = Depends(get_db)):
     return {"status": "no_clean_needed", "oldest": oldest.last_seen.isoformat()}
 
 @app.get("/metrics/history/{hostname}", tags=["Metrics"])
-def get_metrics_history(hostname: str, db: Session = Depends(get_db)):
+def get_metrics_history(
+    hostname: str, 
+    period: str = Query("6h", description="Période d'historique (1h, 6h, 12h, 24h)"),
+    limit: int = Query(500, ge=50, le=1000, description="Nombre maximum de points"),
+    db: Session = Depends(get_db)
+):
+    period_map = {
+        "1h": 1,
+        "6h": 6, 
+        "12h": 12,
+        "24h": 24
+    }
+    
+    if period not in period_map:
+        raise HTTPException(status_code=400, detail="Période invalide. Utilisez: 1h, 6h, 12h, 24h")
+    
+    hours = period_map[period]
+    end_time = datetime.now(timezone.utc)
+    start_time = end_time - timedelta(hours=hours)
+
     metrics = (
         db.query(MetricsDB)
         .filter(MetricsDB.hostname == hostname)
-        .order_by(desc(MetricsDB.last_seen))
-        .limit(50)
+        .filter(MetricsDB.last_seen >= start_time)
+        .order_by(MetricsDB.last_seen.asc())
+        .limit(limit)
         .all()
     )
-    return [m.as_dict() for m in metrics]
+    
+    if not metrics:
+        raise HTTPException(status_code=404, detail=f"Aucune métrique trouvée pour {hostname} sur les {hours}h")
+    
+    return {
+        "hostname": hostname,
+        "period": period,
+        "start_time": start_time.isoformat(),
+        "end_time": end_time.isoformat(),
+        "count": len(metrics),
+        "metrics": [m.as_dict() for m in metrics]
+    }
 
 from fastapi import HTTPException
 

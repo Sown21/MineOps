@@ -15,6 +15,6 @@ export const getLastMetricsByHostname = (hostname) =>
 export const getAgentHealth = (hostname) =>
     instance.get(`/healthcheck/${hostname}`);
 
-// Récupérer l'historique du hostname
-export const getHostnameHistory = (hostname) =>
-    instance.get(`/metrics/history/${hostname}`);
+// Récupérer l'historique du hostname avec période
+export const getHostnameHistory = (hostname, period = "6h") =>
+    instance.get(`/metrics/history/${hostname}?period=${period}`);
