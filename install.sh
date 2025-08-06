@@ -168,7 +168,10 @@ if [[ $status_python -eq 0 && $status_docker -eq 0 ]]; then
     echo "Déploiement de l'application..."
     echo -e "###############################\n"
 
-    (docker compose up -d --build >> /tmp/docker-build.log 2>&1) &
+    sudo docker rmi mineops-backend mineops-frontend 2>/dev/null || true
+    sudo docker rmi $(sudo docker images | grep mineops | awk '{print $3}') 2>/dev/null || true
+
+    (sudo docker compose up -d --build) >> /tmp/docker-build.log 2>&1 &
     pid=$!
 
     spinner $pid &
