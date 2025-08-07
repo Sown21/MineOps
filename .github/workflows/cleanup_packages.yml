@@ -1,0 +1,44 @@
+name: Cleanup old GHCR images
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 1'
+
+jobs:
+  ghcr-cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup gh CLI
+        uses: cli/cli-action@v2
+
+      - name: Log in to GitHub CLI
+        run: gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: List and delete old backend images (keep 10)
+        env:
+          GHCR_IMAGE: mineops/backend
+          GH_USER: ${{ github.repository_owner }}
+          KEEP: 10
+        run: |
+          ids=$(gh api "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions?per_page=100" \
+            | jq '.[].id' | tail -n +$((KEEP+1)))
+          echo "IDs to delete: $ids"
+          for id in $ids; do
+            echo "Deleting $id"
+            gh api --method DELETE "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions/$id"
+          done
+
+      - name: List and delete old frontend images (keep 10)
+        env:
+          GHCR_IMAGE: mineops/frontend
+          GH_USER: ${{ github.repository_owner }}
+          KEEP: 10
+        run: |
+          ids=$(gh api "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions?per_page=100" \
+            | jq '.[].id' | tail -n +$((KEEP+1)))
+          echo "IDs to delete: $ids"
+          for id in $ids; do
+            echo "Deleting $id"
+            gh api --method DELETE "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions/$id"
+          done
