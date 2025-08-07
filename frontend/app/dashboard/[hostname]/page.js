@@ -140,7 +140,7 @@ export default function HostnameDashboard() {
                 )}
                 
                 <div className="glass-card p-6 text-center">
-                    <p className="text-white/90">Aucune donnée d'historique disponible pour {hostname}</p>
+                    <p className="text-white/90">Aucune donnée d&apos;historique disponible pour {hostname}</p>
                 </div>
             </div>
         );
