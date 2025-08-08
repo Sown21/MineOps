@@ -136,26 +136,28 @@ export default function HostnameDashboard() {
     // Vérifier que history est un tableau avant de faire map
     if (!Array.isArray(history) || history.length === 0) {
         return (
-            <div className="px-4">
-                <div className="glass-card p-6 mb-8">
-                    <Link className="glass-button" href="/dashboard">
-                        ← Retour au dashboard
-                    </Link>
-                    <h1 className="text-white font-bold text-2xl md:text-3xl mt-4">
-                        Dashboard - {hostname}
-                    </h1>
-                </div>
-                
-                {error && (
-                    <div className="glass-card p-4 mb-6 border-l-4 border-red-500 text-center">
-                        <p className="text-red-400 font-medium">Erreur de chargement</p>
-                        <p className="text-white/70 text-sm">{error}</p>
+            <div className="glass-card p-6 mb-8">
+                <div className="flex flex-col gap-4">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-4">
+                        <Link className="glass-button" href="/dashboard">
+                            ← Retour au dashboard
+                        </Link>
+                        <h1 className="text-white font-bold text-2xl md:text-3xl mt-4">
+                            Dashboard - {hostname}
+                        </h1>
                     </div>
-                )}
                 
-                {/* <div className="glass-card p-6 text-center">
-                    <p className="text-white/90">Aucune donnée d&apos;historique disponible pour {hostname}</p>
-                </div> */}
+                    {error && (
+                        <div className="glass-card p-4 mb-6 border-l-4 border-red-500 text-center">
+                            <p className="text-red-400 font-medium">Erreur de chargement</p>
+                            <p className="text-white/70 text-sm">{error}</p>
+                        </div>
+                    )}
+                
+                    {/* <div className="glass-card p-6 text-center">
+                        <p className="text-white/90">Aucune donnée d&apos;historique disponible pour {hostname}</p>
+                    </div> */}
+                </div>
             </div>
         );
     }
