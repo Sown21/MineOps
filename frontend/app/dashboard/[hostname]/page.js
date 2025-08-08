@@ -68,33 +68,47 @@ export default function HostnameDashboard() {
         const fetchData = async () => {
             try {
                 setError(null);
-                const [metricsRes, historyRes] = await Promise.all([
-                    getLastMetricsByHostname(hostname),
-                    getHostnameHistory(hostname, selectedPeriod)
-                ]);
-
+                
+                // Récupérer les métriques actuelles
+                const metricsRes = await getLastMetricsByHostname(hostname);
                 setMetrics(metricsRes.data);
                 
-                // S'assurer que history est un tableau
-                const historyData = historyRes.data;
-                if (Array.isArray(historyData)) {
-                    setHistory(historyData);
-                } else if (historyData && Array.isArray(historyData.metrics)) {
-                    setHistory(historyData.metrics);
-                } else {
-                    console.warn("Données d'historique invalides:", historyData);
+                // Récupérer l'historique avec gestion d'erreur spécifique
+                try {
+                    const historyRes = await getHostnameHistory(hostname, selectedPeriod);
+                    const historyData = historyRes.data;
+                    if (Array.isArray(historyData)) {
+                        setHistory(historyData);
+                    } else if (historyData && Array.isArray(historyData.metrics)) {
+                        setHistory(historyData.metrics);
+                    } else {
+                        setHistory([]);
+                    }
+                } catch (historyError) {
+                    console.warn("Erreur historique:", historyError);
+                    if (historyError.response?.status === 404 || historyError.response?.data?.detail?.includes("Aucune métrique trouvée")) {
+                        setError(`Aucune métrique récente pour ${hostname}.`);
+                    } else {
+                        setError(`Erreur lors du chargement de l'historique: ${historyError.message}`);
+                    }
                     setHistory([]);
                 }
 
+                // Récupérer la santé de l'agent
                 try {
                     const healthRes = await getAgentHealth(hostname);
                     setHealth(healthRes.data);
                 } catch (e) {
                     setHealth({ status: "offline" });
                 }
+
             } catch (error) {
                 console.error("Error fetching data:", error);
-                setError(error.message);
+                if (error.response?.status === 404) {
+                    setError(`Aucune métrique trouvée pour ${hostname}`);
+                } else {
+                    setError(`Erreur de connexion: ${error.message}`);
+                }
                 setHistory([]);
             } finally {
                 setIsLoading(false);
@@ -133,15 +147,15 @@ export default function HostnameDashboard() {
                 </div>
                 
                 {error && (
-                    <div className="glass-card p-4 mb-6 border-l-4 border-red-500">
+                    <div className="glass-card p-4 mb-6 border-l-4 border-red-500 text-center">
                         <p className="text-red-400 font-medium">Erreur de chargement</p>
                         <p className="text-white/70 text-sm">{error}</p>
                     </div>
                 )}
                 
-                <div className="glass-card p-6 text-center">
+                {/* <div className="glass-card p-6 text-center">
                     <p className="text-white/90">Aucune donnée d&apos;historique disponible pour {hostname}</p>
-                </div>
+                </div> */}
             </div>
         );
     }
