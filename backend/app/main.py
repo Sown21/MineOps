@@ -10,6 +10,7 @@ import logging
 from datetime import timedelta, datetime, timezone
 import subprocess
 import os
+import json
 
 app = FastAPI(title="Metrics MineOps", 
               description="API MineOps",
@@ -18,6 +19,7 @@ app = FastAPI(title="Metrics MineOps",
                   {"name": "Maintenance", "description": "Nettoyage et maintenance de la base"},
                   {"name": "Health", "description": "Statut des agents"},
                   {"name": "Installation", "description": "Installation/Setup Machine"},
+                  {"name": "Device state", "description": "Commande pour gérer l'état de la machine"},
               ])
 
 app.add_middleware(
@@ -34,6 +36,27 @@ def get_db():
         yield db
     finally:
         db.close()
+
+mapping_file = "user_mapping.json"
+
+def save_user_mapping(ip, user):
+    if os.path.exists(mapping_file):
+        with open(mapping_file, "r") as f:
+            mapping = json.load(f)
+    else:
+        mapping = {}
+    
+    mapping[ip] = user
+
+    with open(mapping_file, "w") as f:
+        json.dump(mapping, f)
+
+def get_user_for_ip(ip):
+    if os.path.exists(mapping_file):
+        with open(mapping_file, "r") as f:
+            mapping = json.load(f)
+        return mapping.get(ip)
+    return None
 
 @app.get("/metrics", response_model=List[MetricsOut], tags=["Metrics"])
 def get_metrics(db: Session = Depends(get_db)):
@@ -178,4 +201,29 @@ async def add_miner(data: InstallMiner):
             status_code=500,
             detail=f"Erreur lors de l'installation : {result.stderr.strip() or result.stdout.strip()}"
         )
+    save_user_mapping(ip, user)
     return {"output": result.stdout.strip()}
+
+@app.post("/reboot/{ip_address}", tags=["Device state"])
+async def reboot_device(ip_address: str):
+    user = get_user_for_ip(ip_address) or "root"
+    result = subprocess.run(
+        [
+            "ansible",
+            ip_address,
+            "-i", f"{ip_address},",
+            "-m", "reboot",
+            "-u", user,
+            "--become"
+        ],
+        capture_output=True,
+        text=True
+    )
+    if result.returncode != 0:
+        print("STDERR:", result.stderr)
+        print("STDOUT:", result.stdout)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de l'execution de la commande reboot : {result.stderr.strip() or result.stdout.strip()}"
+        )
+    return {"ip": ip_address, "output": result.stdout.strip()}
