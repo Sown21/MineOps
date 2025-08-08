@@ -16,3 +16,10 @@ services:
     volumes:
       - /mineops/data:/app/data
     restart: always
+
+  nginx:
+    container_name: mineops-web
+    build: ./nginx
+    ports:
+      - "8021:80"
+    restart: always
