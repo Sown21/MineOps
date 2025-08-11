@@ -17,60 +17,110 @@ jobs:
 
       - name: List and delete old backend images (keep 10)
         env:
-          GHCR_IMAGE: mineops/backend
-          GH_USER: ${{ github.repository_owner }}
+          PACKAGE_NAME: mineops/backend
           KEEP: 10
         run: |
-          # Récupérer les versions et les trier par date (plus anciennes en premier)
-          versions=$(gh api "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions?per_page=100" \
+          echo "Repository owner: ${{ github.repository_owner }}"
+          echo "Package name: $PACKAGE_NAME"
+          
+          # Tester d'abord si le package existe
+          if ! gh api "/orgs/${{ github.repository_owner }}/packages/container/$PACKAGE_NAME" >/dev/null 2>&1; then
+            echo "Package $PACKAGE_NAME not found in organization. Trying user packages..."
+            if ! gh api "/users/${{ github.repository_owner }}/packages/container/$PACKAGE_NAME" >/dev/null 2>&1; then
+              echo "Package $PACKAGE_NAME not found. Skipping cleanup."
+              exit 0
+            else
+              ENDPOINT_PREFIX="/users/${{ github.repository_owner }}"
+            fi
+          else
+            ENDPOINT_PREFIX="/orgs/${{ github.repository_owner }}"
+          fi
+          
+          echo "Using endpoint: $ENDPOINT_PREFIX"
+          
+          # Récupérer les versions
+          versions=$(gh api "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions?per_page=100" \
             --jq 'sort_by(.created_at) | reverse')
+          
+          if [ -z "$versions" ] || [ "$versions" = "null" ]; then
+            echo "No versions found for $PACKAGE_NAME"
+            exit 0
+          fi
           
           # Compter le nombre total de versions
           total=$(echo "$versions" | jq 'length')
-          echo "Total versions found: $total"
+          echo "Total backend versions found: $total"
           
           if [ "$total" -gt "$KEEP" ]; then
             # Calculer combien supprimer
             to_delete=$((total - KEEP))
-            echo "Deleting $to_delete old versions (keeping $KEEP newest)"
+            echo "Deleting $to_delete old backend versions (keeping $KEEP newest)"
             
             # Récupérer les IDs des versions à supprimer (les plus anciennes)
             ids=$(echo "$versions" | jq -r ".[-$to_delete:][].id")
             
             for id in $ids; do
-              echo "Deleting backend version ID: $id"
-              gh api --method DELETE "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions/$id" || echo "Failed to delete $id"
+              if [ -n "$id" ] && [ "$id" != "null" ]; then
+                echo "Deleting backend version ID: $id"
+                gh api --method DELETE "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions/$id" || echo "Failed to delete $id"
+                sleep 1  # Petite pause entre les suppressions
+              fi
             done
           else
-            echo "Not enough versions to clean up (found $total, keeping $KEEP)"
+            echo "Not enough backend versions to clean up (found $total, keeping $KEEP)"
           fi
 
       - name: List and delete old frontend images (keep 10)
         env:
-          GHCR_IMAGE: mineops/frontend
-          GH_USER: ${{ github.repository_owner }}
+          PACKAGE_NAME: mineops/frontend
           KEEP: 10
         run: |
-          # Récupérer les versions et les trier par date (plus anciennes en premier)
-          versions=$(gh api "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions?per_page=100" \
+          echo "Repository owner: ${{ github.repository_owner }}"
+          echo "Package name: $PACKAGE_NAME"
+          
+          # Tester d'abord si le package existe
+          if ! gh api "/orgs/${{ github.repository_owner }}/packages/container/$PACKAGE_NAME" >/dev/null 2>&1; then
+            echo "Package $PACKAGE_NAME not found in organization. Trying user packages..."
+            if ! gh api "/users/${{ github.repository_owner }}/packages/container/$PACKAGE_NAME" >/dev/null 2>&1; then
+              echo "Package $PACKAGE_NAME not found. Skipping cleanup."
+              exit 0
+            else
+              ENDPOINT_PREFIX="/users/${{ github.repository_owner }}"
+            fi
+          else
+            ENDPOINT_PREFIX="/orgs/${{ github.repository_owner }}"
+          fi
+          
+          echo "Using endpoint: $ENDPOINT_PREFIX"
+          
+          # Récupérer les versions
+          versions=$(gh api "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions?per_page=100" \
             --jq 'sort_by(.created_at) | reverse')
+          
+          if [ -z "$versions" ] || [ "$versions" = "null" ]; then
+            echo "No versions found for $PACKAGE_NAME"
+            exit 0
+          fi
           
           # Compter le nombre total de versions
           total=$(echo "$versions" | jq 'length')
-          echo "Total versions found: $total"
+          echo "Total frontend versions found: $total"
           
           if [ "$total" -gt "$KEEP" ]; then
             # Calculer combien supprimer
             to_delete=$((total - KEEP))
-            echo "Deleting $to_delete old versions (keeping $KEEP newest)"
+            echo "Deleting $to_delete old frontend versions (keeping $KEEP newest)"
             
             # Récupérer les IDs des versions à supprimer (les plus anciennes)
             ids=$(echo "$versions" | jq -r ".[-$to_delete:][].id")
             
             for id in $ids; do
-              echo "Deleting frontend version ID: $id"
-              gh api --method DELETE "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions/$id" || echo "Failed to delete $id"
+              if [ -n "$id" ] && [ "$id" != "null" ]; then
+                echo "Deleting frontend version ID: $id"
+                gh api --method DELETE "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions/$id" || echo "Failed to delete $id"
+                sleep 1  # Petite pause entre les suppressions
+              fi
             done
           else
-            echo "Not enough versions to clean up (found $total, keeping $KEEP)"
+            echo "Not enough frontend versions to clean up (found $total, keeping $KEEP)"
           fi
