@@ -38,10 +38,10 @@ jobs:
           
           echo "Using endpoint: $ENDPOINT_PREFIX"
           
-          # Récupérer les versions
+          # Récupérer les versions (du plus ancien au plus récent)
           versions=$(gh api "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions?per_page=100" \
-            --jq 'sort_by(.created_at) | reverse')
-          
+            --jq 'sort_by(.created_at)')
+
           if [ -z "$versions" ] || [ "$versions" = "null" ]; then
             echo "No versions found"
             exit 0
@@ -49,25 +49,25 @@ jobs:
           
           # Compter le nombre total de versions
           total=$(echo "$versions" | jq 'length')
-          echo "Total backend versions found: $total"
+          echo "Total versions found: $total"
           
           if [ "$total" -gt "$KEEP" ]; then
             # Calculer combien supprimer
             to_delete=$((total - KEEP))
-            echo "Deleting $to_delete old backend versions (keeping $KEEP newest)"
+            echo "Deleting $to_delete old versions (keeping $KEEP newest)"
             
             # Récupérer les IDs des versions à supprimer (les plus anciennes)
-            ids=$(echo "$versions" | jq -r ".[-$to_delete:][].id")
+            ids=$(echo "$versions" | jq -r "[:$to_delete][].id")
             
             for id in $ids; do
               if [ -n "$id" ] && [ "$id" != "null" ]; then
-                echo "Deleting backend version ID: $id"
+                echo "Deleting version ID: $id"
                 gh api --method DELETE "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions/$id" || echo "Failed to delete $id"
                 sleep 1
               fi
             done
           else
-            echo "Not enough backend versions to clean up (found $total, keeping $KEEP)"
+            echo "Not enough versions to clean up (found $total, keeping $KEEP)"
           fi
 
       - name: List and delete old frontend images (keep 3)
@@ -93,10 +93,10 @@ jobs:
           
           echo "Using endpoint: $ENDPOINT_PREFIX"
           
-          # Récupérer les versions
+          # Récupérer les versions (du plus ancien au plus récent)
           versions=$(gh api "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions?per_page=100" \
-            --jq 'sort_by(.created_at) | reverse')
-          
+            --jq 'sort_by(.created_at)')
+
           if [ -z "$versions" ] || [ "$versions" = "null" ]; then
             echo "No versions found"
             exit 0
@@ -104,25 +104,25 @@ jobs:
           
           # Compter le nombre total de versions
           total=$(echo "$versions" | jq 'length')
-          echo "Total frontend versions found: $total"
+          echo "Total versions found: $total"
           
           if [ "$total" -gt "$KEEP" ]; then
             # Calculer combien supprimer
             to_delete=$((total - KEEP))
-            echo "Deleting $to_delete old frontend versions (keeping $KEEP newest)"
+            echo "Deleting $to_delete old versions (keeping $KEEP newest)"
             
             # Récupérer les IDs des versions à supprimer (les plus anciennes)
-            ids=$(echo "$versions" | jq -r ".[-$to_delete:][].id")
+            ids=$(echo "$versions" | jq -r "[:$to_delete][].id")
             
             for id in $ids; do
               if [ -n "$id" ] && [ "$id" != "null" ]; then
-                echo "Deleting frontend version ID: $id"
+                echo "Deleting version ID: $id"
                 gh api --method DELETE "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions/$id" || echo "Failed to delete $id"
                 sleep 1
               fi
             done
           else
-            echo "Not enough frontend versions to clean up (found $total, keeping $KEEP)"
+            echo "Not enough versions to clean up (found $total, keeping $KEEP)"
           fi
 
       - name: List and delete old nginx images (keep 3)
@@ -148,10 +148,10 @@ jobs:
           
           echo "Using endpoint: $ENDPOINT_PREFIX"
           
-          # Récupérer les versions
+          # Récupérer les versions (du plus ancien au plus récent)
           versions=$(gh api "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions?per_page=100" \
-            --jq 'sort_by(.created_at) | reverse')
-          
+            --jq 'sort_by(.created_at)')
+
           if [ -z "$versions" ] || [ "$versions" = "null" ]; then
             echo "No versions found"
             exit 0
@@ -159,23 +159,23 @@ jobs:
           
           # Compter le nombre total de versions
           total=$(echo "$versions" | jq 'length')
-          echo "Total nginx versions found: $total"
+          echo "Total versions found: $total"
           
           if [ "$total" -gt "$KEEP" ]; then
             # Calculer combien supprimer
             to_delete=$((total - KEEP))
-            echo "Deleting $to_delete old nginx versions (keeping $KEEP newest)"
+            echo "Deleting $to_delete old versions (keeping $KEEP newest)"
             
             # Récupérer les IDs des versions à supprimer (les plus anciennes)
-            ids=$(echo "$versions" | jq -r ".[-$to_delete:][].id")
+            ids=$(echo "$versions" | jq -r "[:$to_delete][].id")
             
             for id in $ids; do
               if [ -n "$id" ] && [ "$id" != "null" ]; then
-                echo "Deleting nginx version ID: $id"
+                echo "Deleting version ID: $id"
                 gh api --method DELETE "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions/$id" || echo "Failed to delete $id"
                 sleep 1
               fi
             done
           else
-            echo "Not enough nginx versions to clean up (found $total, keeping $KEEP)"
+            echo "Not enough versions to clean up (found $total, keeping $KEEP)"
           fi
