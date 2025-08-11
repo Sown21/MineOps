@@ -5,7 +5,7 @@ from datetime import datetime
 import time
 import netifaces
 
-API_URL = "http://192.168.56.30:8000/metrics"
+API_URL = "http://backend:8000/metrics"
 
 def get_metrics():
     cpu_utilization = psutil.cpu_percent(interval=1)
