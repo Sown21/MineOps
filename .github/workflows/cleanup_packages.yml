@@ -15,19 +15,19 @@ jobs:
       - name: Log in to GitHub Container Registry
         run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
 
-      - name: List and delete old backend images (keep 10)
+      - name: List and delete old backend images (keep 3)
         env:
-          PACKAGE_NAME: mineops/backend
-          KEEP: 10
+          PACKAGE_NAME: mineops%2Fbackend 
+          KEEP: 3
         run: |
           echo "Repository owner: ${{ github.repository_owner }}"
-          echo "Package name: $PACKAGE_NAME"
+          echo "Package name: mineops/backend"
           
           # Tester d'abord si le package existe
           if ! gh api "/orgs/${{ github.repository_owner }}/packages/container/$PACKAGE_NAME" >/dev/null 2>&1; then
-            echo "Package $PACKAGE_NAME not found in organization. Trying user packages..."
+            echo "Package not found in organization. Trying user packages..."
             if ! gh api "/users/${{ github.repository_owner }}/packages/container/$PACKAGE_NAME" >/dev/null 2>&1; then
-              echo "Package $PACKAGE_NAME not found. Skipping cleanup."
+              echo "Package not found. Skipping cleanup."
               exit 0
             else
               ENDPOINT_PREFIX="/users/${{ github.repository_owner }}"
@@ -43,7 +43,7 @@ jobs:
             --jq 'sort_by(.created_at) | reverse')
           
           if [ -z "$versions" ] || [ "$versions" = "null" ]; then
-            echo "No versions found for $PACKAGE_NAME"
+            echo "No versions found"
             exit 0
           fi
           
@@ -63,26 +63,26 @@ jobs:
               if [ -n "$id" ] && [ "$id" != "null" ]; then
                 echo "Deleting backend version ID: $id"
                 gh api --method DELETE "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions/$id" || echo "Failed to delete $id"
-                sleep 1  # Petite pause entre les suppressions
+                sleep 1
               fi
             done
           else
             echo "Not enough backend versions to clean up (found $total, keeping $KEEP)"
           fi
 
-      - name: List and delete old frontend images (keep 10)
+      - name: List and delete old frontend images (keep 3)
         env:
-          PACKAGE_NAME: mineops/frontend
-          KEEP: 10
+          PACKAGE_NAME: mineops%2Ffrontend
+          KEEP: 3
         run: |
           echo "Repository owner: ${{ github.repository_owner }}"
-          echo "Package name: $PACKAGE_NAME"
+          echo "Package name: mineops/frontend"
           
           # Tester d'abord si le package existe
           if ! gh api "/orgs/${{ github.repository_owner }}/packages/container/$PACKAGE_NAME" >/dev/null 2>&1; then
-            echo "Package $PACKAGE_NAME not found in organization. Trying user packages..."
+            echo "Package not found in organization. Trying user packages..."
             if ! gh api "/users/${{ github.repository_owner }}/packages/container/$PACKAGE_NAME" >/dev/null 2>&1; then
-              echo "Package $PACKAGE_NAME not found. Skipping cleanup."
+              echo "Package not found. Skipping cleanup."
               exit 0
             else
               ENDPOINT_PREFIX="/users/${{ github.repository_owner }}"
@@ -98,7 +98,7 @@ jobs:
             --jq 'sort_by(.created_at) | reverse')
           
           if [ -z "$versions" ] || [ "$versions" = "null" ]; then
-            echo "No versions found for $PACKAGE_NAME"
+            echo "No versions found"
             exit 0
           fi
           
@@ -118,9 +118,64 @@ jobs:
               if [ -n "$id" ] && [ "$id" != "null" ]; then
                 echo "Deleting frontend version ID: $id"
                 gh api --method DELETE "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions/$id" || echo "Failed to delete $id"
-                sleep 1  # Petite pause entre les suppressions
+                sleep 1
               fi
             done
           else
             echo "Not enough frontend versions to clean up (found $total, keeping $KEEP)"
+          fi
+
+      - name: List and delete old nginx images (keep 3)
+        env:
+          PACKAGE_NAME: mineops%2Fnginx
+          KEEP: 3
+        run: |
+          echo "Repository owner: ${{ github.repository_owner }}"
+          echo "Package name: mineops/nginx"
+          
+          # Tester d'abord si le package existe
+          if ! gh api "/orgs/${{ github.repository_owner }}/packages/container/$PACKAGE_NAME" >/dev/null 2>&1; then
+            echo "Package not found in organization. Trying user packages..."
+            if ! gh api "/users/${{ github.repository_owner }}/packages/container/$PACKAGE_NAME" >/dev/null 2>&1; then
+              echo "Package not found. Skipping cleanup."
+              exit 0
+            else
+              ENDPOINT_PREFIX="/users/${{ github.repository_owner }}"
+            fi
+          else
+            ENDPOINT_PREFIX="/orgs/${{ github.repository_owner }}"
+          fi
+          
+          echo "Using endpoint: $ENDPOINT_PREFIX"
+          
+          # Récupérer les versions
+          versions=$(gh api "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions?per_page=100" \
+            --jq 'sort_by(.created_at) | reverse')
+          
+          if [ -z "$versions" ] || [ "$versions" = "null" ]; then
+            echo "No versions found"
+            exit 0
+          fi
+          
+          # Compter le nombre total de versions
+          total=$(echo "$versions" | jq 'length')
+          echo "Total nginx versions found: $total"
+          
+          if [ "$total" -gt "$KEEP" ]; then
+            # Calculer combien supprimer
+            to_delete=$((total - KEEP))
+            echo "Deleting $to_delete old nginx versions (keeping $KEEP newest)"
+            
+            # Récupérer les IDs des versions à supprimer (les plus anciennes)
+            ids=$(echo "$versions" | jq -r ".[-$to_delete:][].id")
+            
+            for id in $ids; do
+              if [ -n "$id" ] && [ "$id" != "null" ]; then
+                echo "Deleting nginx version ID: $id"
+                gh api --method DELETE "$ENDPOINT_PREFIX/packages/container/$PACKAGE_NAME/versions/$id" || echo "Failed to delete $id"
+                sleep 1
+              fi
+            done
+          else
+            echo "Not enough nginx versions to clean up (found $total, keeping $KEEP)"
           fi
