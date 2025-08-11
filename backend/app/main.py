@@ -227,3 +227,52 @@ async def reboot_device(ip_address: str):
             detail=f"Erreur lors de l'execution de la commande reboot : {result.stderr.strip() or result.stdout.strip()}"
         )
     return {"ip": ip_address, "output": result.stdout.strip()}
+
+@app.post("/execute-command", tags=["Commands"])
+async def execute_command(request: dict):
+    command = request.get("command")
+    hostnames = request.get("hostnames", [])
+    
+    if not command or not hostnames:
+        raise HTTPException(
+            status_code=400, 
+            detail="Command and hostnames are required"
+        )
+    
+    results = []
+    
+    for hostname in hostnames:
+        user = get_user_for_ip(hostname) or "root"
+        try:
+            result = subprocess.run([
+                "ansible",
+                hostname,
+                "-i", f"{hostname},",
+                "-m", "shell",
+                "-a", command,
+                "-u", user
+            ], capture_output=True, text=True, timeout=30)
+            
+            results.append({
+                "hostname": hostname,
+                "success": result.returncode == 0,
+                "output": result.stdout.strip() or result.stderr.strip(),
+                "return_code": result.returncode
+            })
+            
+        except subprocess.TimeoutExpired:
+            results.append({
+                "hostname": hostname,
+                "success": False,
+                "output": "Commande timeout (30s)",
+                "return_code": -1
+            })
+        except Exception as e:
+            results.append({
+                "hostname": hostname,
+                "success": False,
+                "output": f"Erreur: {str(e)}",
+                "return_code": -1
+            })
+    
+    return {"results": results}
