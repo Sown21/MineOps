@@ -3,7 +3,7 @@ import psutil
 import socket
 from datetime import datetime
 import time
-import ipaddress
+import netifaces
 
 API_URL = "http://192.168.56.30:8000/metrics"
 
@@ -23,14 +23,25 @@ def get_metrics():
     return metrics
 
 def get_ip_address():
-  try:
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.connect(("8.8.8.8", 80))  # Connect to a public DNS server (Google's)
-    local_ip = s.getsockname()[0]
-    s.close()
-    return local_ip
-  except socket.error:
-    return "127.0.0.1"
+    try:
+        for interface in netifaces.interfaces():
+            if interface.startswith('lo'):  # Ignorer loopback
+                continue
+            
+            addresses = netifaces.ifaddresses(interface)
+            if netifaces.AF_INET in addresses:
+                for addr_info in addresses[netifaces.AF_INET]:
+                    ip = addr_info['addr']
+                    
+                    # Privilégier les plages IP privées (non NAT VirtualBox)
+                    if (ip.startswith('192.168.') or 
+                        ip.startswith('172.16.') or ip.startswith('172.17.') or 
+                        ip.startswith('172.18.') or ip.startswith('172.19.') or
+                        ip.startswith('172.2') or ip.startswith('172.3') or
+                        (ip.startswith('10.') and not ip.startswith('10.0.2.'))):  # Éviter NAT VirtualBox
+                        return ip
+    except Exception as e:
+        print(f"Erreur lors du scan des interfaces: {e}")
 
 def send_metrics(metrics):
     try:
