@@ -18,7 +18,7 @@ jobs:
       - name: List and delete old backend images (keep 3)
         env:
           PACKAGE_NAME: mineops%2Fbackend 
-          KEEP: 3
+          KEEP: 10
         run: |
           echo "Repository owner: ${{ github.repository_owner }}"
           echo "Package name: mineops/backend"
@@ -73,7 +73,7 @@ jobs:
       - name: List and delete old frontend images (keep 3)
         env:
           PACKAGE_NAME: mineops%2Ffrontend
-          KEEP: 3
+          KEEP: 10
         run: |
           echo "Repository owner: ${{ github.repository_owner }}"
           echo "Package name: mineops/frontend"
@@ -128,7 +128,7 @@ jobs:
       - name: List and delete old nginx images (keep 3)
         env:
           PACKAGE_NAME: mineops%2Fnginx
-          KEEP: 3
+          KEEP: 10
         run: |
           echo "Repository owner: ${{ github.repository_owner }}"
           echo "Package name: mineops/nginx"
