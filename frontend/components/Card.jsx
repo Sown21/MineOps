@@ -18,9 +18,12 @@ const Card = ({ hostname, metrics, health }) => {
 
     const confirmReboot = async () => {
         setIsRebooting(true);
+        setShowConfirm(false);
         setRebootStatus(null);
+        
         try {
             await rebootDevice(metrics?.ip_address);
+            // TOUJOURS TRAITER COMME UN SUCCÈS car le reboot fonctionne même avec timeout
             setRebootStatus('success');
             setRebootMessage(`Reboot lancé pour ${hostname}`);
             
@@ -28,19 +31,32 @@ const Card = ({ hostname, metrics, health }) => {
             setTimeout(() => {
                 setRebootStatus(null);
                 setRebootMessage("");
+                setIsRebooting(false); // RESET APRÈS LE MESSAGE
             }, 3000);
-        } catch (error) {
-            setRebootStatus('error');
-            setRebootMessage(`Erreur lors du reboot: ${error.message}`);
             
-            // Auto-hide error message after 5 seconds
-            setTimeout(() => {
-                setRebootStatus(null);
-                setRebootMessage("");
-            }, 5000);
-        } finally {
-            setIsRebooting(false);
-            setShowConfirm(false);
+        } catch (error) {
+            // DIFFÉRENCIER LES ERREURS TIMEOUT DES VRAIES ERREURS
+            if (error.message.includes('timeout') || error.code === 'ECONNABORTED') {
+                // Timeout = reboot probablement réussi (machine redémarre)
+                setRebootStatus('success');
+                setRebootMessage(`Reboot lancé pour ${hostname} (machine redémarre...)`);
+                
+                setTimeout(() => {
+                    setRebootStatus(null);
+                    setRebootMessage("");
+                    setIsRebooting(false);
+                }, 4000);
+            } else {
+                // Vraie erreur (SSH, connexion, etc.)
+                setRebootStatus('error');
+                setRebootMessage(`Erreur lors du reboot: ${error.message}`);
+                
+                setTimeout(() => {
+                    setRebootStatus(null);
+                    setRebootMessage("");
+                    setIsRebooting(false);
+                }, 5000);
+            }
         }
     };
 
@@ -69,12 +85,16 @@ const Card = ({ hostname, metrics, health }) => {
                             {hostname}
                         </h3>
                         <div className="relative flex h-6 w-6 items-center justify-center">
-                            {isOnline && (
+                            {isOnline && !isRebooting && ( // NE PAS MONTRER LE PING SI REBOOT EN COURS
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                             )}
                             <span
-                                title={isOnline ? "Agent en ligne" : "Hôte injoignable ou agent hors-ligne"}
+                                title={
+                                    isRebooting ? "Machine en cours de redémarrage..." :
+                                    isOnline ? "Agent en ligne" : "Hôte injoignable ou agent hors-ligne"
+                                }
                                 className={`relative inline-flex w-3 h-3 rounded-full border ${
+                                    isRebooting ? "bg-yellow-400 border-yellow-500" : // STATUT REBOOT
                                     isOnline ? "status-indicator-online" : "status-indicator-offline"
                                 }`}
                             ></span>
@@ -118,16 +138,19 @@ const Card = ({ hostname, metrics, health }) => {
                                     ? "opacity-50 cursor-not-allowed"
                                     : "hover:bg-red-500/20 hover:border-red-400"
                             }`}
-                            title={!isOnline ? "Machine hors ligne" : "Redémarrer la machine"}
+                            title={
+                                isRebooting ? "Redémarrage en cours..." :
+                                !isOnline ? "Machine hors ligne" : "Redémarrer la machine"
+                            }
                         >
-                            {isRebooting ? "Redémarrage..." : "⚡ Reboot"}
+                            {isRebooting ? "🔄 Redémarrage..." : "⚡ Reboot"}
                         </button>
                     </div>
                 </div>
             </Link>
 
-            {/* Modal de confirmation */}
-            {showConfirm && (
+            {/* Modal de confirmation - ne s'affiche que si showConfirm = true */}
+            {showConfirm && !isRebooting && ( // NE PAS AFFICHER SI REBOOT DÉJÀ EN COURS
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="glass-card p-6 max-w-md mx-4">
                         <h3 className="text-white font-semibold text-lg mb-4">
