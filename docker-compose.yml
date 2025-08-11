@@ -4,6 +4,8 @@ services:
     build: ./frontend
     ports:
       - "3000:3000"
+    environment:
+      - API_URL=http://${HOST_IP}:8000
     depends_on:
       - backend
     restart: always
@@ -13,6 +15,8 @@ services:
     build: ./backend
     ports: 
       - "8000:8000"
+    environment:
+      - HOST_IP=${HOST_IP}
     volumes:
       - /opt/mineops/data:/app/data
     restart: always

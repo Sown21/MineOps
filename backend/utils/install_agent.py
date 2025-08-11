@@ -120,7 +120,6 @@ def test_ssh_key_connection(ip, user):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         
-        # Charger la clé privée
         key_path = Path.home() / ".ssh" / "id_rsa"
         private_key = paramiko.RSAKey.from_private_key_file(str(key_path))
         
@@ -138,7 +137,7 @@ def test_ssh_key_connection(ip, user):
         logger.error(f"Erreur lors du test SSH avec clé: {e}")
         return False
 
-def run_ansible_playbook(ip, user):
+def run_ansible_playbook(ip, user, backend_ip):
     """Exécute le playbook Ansible"""
     script_dir = Path(__file__).parent
     playbook_path = script_dir / "../playbook/deploy_agent.yml"
@@ -154,7 +153,8 @@ def run_ansible_playbook(ip, user):
             "ansible-playbook", str(playbook_path),
             "-i", f"{ip},",
             "-u", user,
-            "-e", "ansible_ssh_common_args='-o StrictHostKeyChecking=no'"
+            "-e", "ansible_ssh_common_args='-o StrictHostKeyChecking=no'",
+            "-e", f"backend_ip={backend_ip}"
         ], check=True)
         logger.info("Playbook Ansible exécuté avec succès")
         return True
@@ -170,6 +170,20 @@ def main():
     
     args = parser.parse_args()
     
+    # Debug : afficher toutes les variables d'environnement
+    logger.info("Variables d'environnement disponibles :")
+    for key, value in os.environ.items():
+        if 'HOST' in key or 'IP' in key:
+            logger.info(f"  {key}={value}")
+    
+    # Récupérer l'IP du backend depuis la variable d'environnement
+    backend_ip = os.environ.get("HOST_IP")
+    if not backend_ip:
+        logger.error("Variable HOST_IP non définie. L'IP du backend doit être fournie.")
+        logger.error("Vérifiez que HOST_IP est bien définie dans docker-compose.yml")
+        sys.exit(1)
+    
+    logger.info(f"IP du backend : {backend_ip}")
     logger.info(f"Début de l'installation sur {args.ip}")
     
     try:
@@ -186,8 +200,8 @@ def main():
             logger.error("Échec du test de connexion SSH avec clé")
             sys.exit(1)
         
-        # 4. Exécuter le playbook Ansible
-        if not run_ansible_playbook(args.ip, args.user):
+        # 4. Exécuter le playbook Ansible avec l'IP du backend
+        if not run_ansible_playbook(args.ip, args.user, backend_ip):
             logger.error("Échec de l'exécution du playbook")
             sys.exit(1)
         

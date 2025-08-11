@@ -3,24 +3,15 @@ import psutil
 import socket
 from datetime import datetime
 import time
+import os
 import netifaces
 
-API_URL = "http://backend:8000/metrics"
-
-def get_metrics():
-    cpu_utilization = psutil.cpu_percent(interval=1)
-    memory_utilization = psutil.virtual_memory().percent
-    disk_usage = psutil.disk_usage('/').percent
-
-    metrics = {
-        "cpu_utilization": cpu_utilization,
-        "memory_utilization": memory_utilization,
-        "disk_usage": disk_usage,
-        "ip_address": get_ip_address(),
-        "hostname": socket.gethostname(),
-        "last_seen": datetime.utcnow().isoformat()
-    }
-    return metrics
+def get_api_url():
+    """Récupère l'URL de l'API depuis la variable d'environnement ou fallback"""
+    env_url = os.environ.get("MINEOPS_API_URL")
+    if env_url:
+        return env_url
+    return "http://localhost:8000/metrics"
 
 def get_ip_address():
     try:
@@ -43,12 +34,30 @@ def get_ip_address():
     except Exception as e:
         print(f"Erreur lors du scan des interfaces: {e}")
 
+def get_metrics():
+    cpu_utilization = psutil.cpu_percent(interval=1)
+    memory_utilization = psutil.virtual_memory().percent
+    disk_usage = psutil.disk_usage('/').percent
+
+    metrics = {
+        "cpu_utilization": cpu_utilization,
+        "memory_utilization": memory_utilization,
+        "disk_usage": disk_usage,
+        "ip_address": get_ip_address(),
+        "hostname": socket.gethostname(),
+        "last_seen": datetime.utcnow().isoformat()
+    }
+    return metrics
+
 def send_metrics(metrics):
     try:
         response = requests.post(API_URL, json=metrics)
         print(f"Status: {response.status_code} - {response.text}")
     except Exception as e:
         print("Send error: ", e)
+
+API_URL = get_api_url()
+print(f"Using API URL: {API_URL}")
 
 if __name__ == "__main__":
     while True:

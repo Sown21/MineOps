@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 trap 'echo -e "\nInterruption détectée ! Arrêt en cours..."; pkill -P $$; exit 1' SIGINT
 
 spinner() {
@@ -112,6 +114,50 @@ install_docker() {
     fi
 }
 
+get_host_ip() {
+    # Priorité 1: Interface 192.168.x.x (réseau privé classique)
+    for interface in $(ls /sys/class/net/ | grep -v lo | grep -v docker); do
+        ip=$(ip addr show "$interface" 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1 | head -1)
+        if [[ -n "$ip" && "$ip" =~ ^192\.168\. ]]; then
+            echo "$ip"
+            return 0
+        fi
+    done
+    
+    # Priorité 2: Interface 10.x.x.x (mais pas NAT VirtualBox)
+    for interface in $(ls /sys/class/net/ | grep -v lo | grep -v docker); do
+        ip=$(ip addr show "$interface" 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1 | head -1)
+        if [[ -n "$ip" && "$ip" =~ ^10\. && ! "$ip" =~ ^10\.0\.2\. ]]; then
+            echo "$ip"
+            return 0
+        fi
+    done
+    
+    # Priorité 3: Interface 172.16-31.x.x (mais pas Docker bridge)
+    for interface in $(ls /sys/class/net/ | grep -v lo | grep -v docker); do
+        ip=$(ip addr show "$interface" 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1 | head -1)
+        if [[ -n "$ip" && "$ip" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\. && "$ip" != "172.17.0.1" ]]; then
+            echo "$ip"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
+echo -e "\n#########################"
+echo "Détection de l'IP de l'hôte..."
+echo -e "#########################"
+
+HOST_IP=$(get_host_ip)
+if [[ -z "$HOST_IP" ]]; then
+    echo "❌ Impossible de détecter l'IP de l'hôte"
+    exit 1
+fi
+
+echo "✅ IP détectée : $HOST_IP"
+export HOST_IP
+
 echo -e "\n#########################"
 echo "Mise à jour du système..."
 echo -e "#########################"
@@ -171,7 +217,7 @@ if [[ $status_python -eq 0 && $status_docker -eq 0 ]]; then
     sudo docker rmi mineops-backend mineops-frontend 2>/dev/null || true
     sudo docker rmi $(sudo docker images | grep mineops | awk '{print $3}') 2>/dev/null || true
 
-    (sudo docker compose up -d --build) >> /tmp/docker-build.log 2>&1 &
+    (sudo -E docker compose up -d --build) >> /tmp/docker-build.log 2>&1 &
     pid=$!
 
     spinner $pid &

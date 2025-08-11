@@ -42,6 +42,7 @@
           ExecStart=/usr/bin/python3 {{ agent_dest }}
           Restart=always
           User=root
+          Environment=MINEOPS_API_URL=http://{{ backend_ip }}:8000/metrics
 
           [Install]
           WantedBy=multi-user.target
@@ -53,5 +54,6 @@
     - name: Activer et démarrer l'agent
       systemd:
         name: "{{ service_name }}"
-        enabled: yes
+        enabled: true
         state: started
+        daemon_reload: true
