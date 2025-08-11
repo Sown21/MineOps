@@ -8,12 +8,12 @@ on:
 jobs:
   ghcr-cleanup:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Setup gh CLI
-        uses: cli/cli-action@v2
-
-      - name: Log in to GitHub CLI
-        run: gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
+      - name: Log in to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
 
       - name: List and delete old backend images (keep 10)
         env:
@@ -21,13 +21,29 @@ jobs:
           GH_USER: ${{ github.repository_owner }}
           KEEP: 10
         run: |
-          ids=$(gh api "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions?per_page=100" \
-            | jq '.[].id' | tail -n +$((KEEP+1)))
-          echo "IDs to delete: $ids"
-          for id in $ids; do
-            echo "Deleting $id"
-            gh api --method DELETE "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions/$id"
-          done
+          # Récupérer les versions et les trier par date (plus anciennes en premier)
+          versions=$(gh api "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions?per_page=100" \
+            --jq 'sort_by(.created_at) | reverse')
+          
+          # Compter le nombre total de versions
+          total=$(echo "$versions" | jq 'length')
+          echo "Total versions found: $total"
+          
+          if [ "$total" -gt "$KEEP" ]; then
+            # Calculer combien supprimer
+            to_delete=$((total - KEEP))
+            echo "Deleting $to_delete old versions (keeping $KEEP newest)"
+            
+            # Récupérer les IDs des versions à supprimer (les plus anciennes)
+            ids=$(echo "$versions" | jq -r ".[-$to_delete:][].id")
+            
+            for id in $ids; do
+              echo "Deleting backend version ID: $id"
+              gh api --method DELETE "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions/$id" || echo "Failed to delete $id"
+            done
+          else
+            echo "Not enough versions to clean up (found $total, keeping $KEEP)"
+          fi
 
       - name: List and delete old frontend images (keep 10)
         env:
@@ -35,10 +51,26 @@ jobs:
           GH_USER: ${{ github.repository_owner }}
           KEEP: 10
         run: |
-          ids=$(gh api "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions?per_page=100" \
-            | jq '.[].id' | tail -n +$((KEEP+1)))
-          echo "IDs to delete: $ids"
-          for id in $ids; do
-            echo "Deleting $id"
-            gh api --method DELETE "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions/$id"
-          done
+          # Récupérer les versions et les trier par date (plus anciennes en premier)
+          versions=$(gh api "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions?per_page=100" \
+            --jq 'sort_by(.created_at) | reverse')
+          
+          # Compter le nombre total de versions
+          total=$(echo "$versions" | jq 'length')
+          echo "Total versions found: $total"
+          
+          if [ "$total" -gt "$KEEP" ]; then
+            # Calculer combien supprimer
+            to_delete=$((total - KEEP))
+            echo "Deleting $to_delete old versions (keeping $KEEP newest)"
+            
+            # Récupérer les IDs des versions à supprimer (les plus anciennes)
+            ids=$(echo "$versions" | jq -r ".[-$to_delete:][].id")
+            
+            for id in $ids; do
+              echo "Deleting frontend version ID: $id"
+              gh api --method DELETE "/users/$GH_USER/packages/container/$GHCR_IMAGE/versions/$id" || echo "Failed to delete $id"
+            done
+          else
+            echo "Not enough versions to clean up (found $total, keeping $KEEP)"
+          fi
