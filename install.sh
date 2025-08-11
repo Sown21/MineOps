@@ -156,7 +156,7 @@ if [[ $status_python -eq 0 && $status_docker -eq 0 ]]; then
     echo "Création du répertoire pour monter le volume..."
     echo -e "###############################################"
 
-    sudo mkdir -p /mineops/data/
+    sudo mkdir -p /opt/mineops/data/
     if [ $? -eq 0 ]; then
         echo "Status : OK"
     else
