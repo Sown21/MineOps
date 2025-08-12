@@ -229,7 +229,7 @@ async def reboot_device(ip_address: str):
     return {"ip": ip_address, "output": result.stdout.strip()}
 
 @app.post("/execute-command", tags=["Commands"])
-async def execute_command(request: dict):
+async def execute_command(request: dict, db: Session = Depends(get_db)):
     command = request.get("command")
     hostnames = request.get("hostnames", [])
     if not command or not hostnames:
@@ -239,27 +239,46 @@ async def execute_command(request: dict):
         )
     results = []
     for hostname in hostnames:
-        user = get_user_for_ip(hostname) or "root"
+        metrics = db.query(MetricsDB).filter(MetricsDB.hostname == hostname).order_by(MetricsDB.last_seen.desc()).first()
+        if not metrics:
+            results.append({
+                "hostname": hostname,
+                "success": False,
+                "output": f"Hostname {hostname} not found in database",
+                "return_code": -1
+            })
+            continue      
+        ip_address = metrics.ip_address
+        user = get_user_for_ip(ip_address) or "root"
         try:
             result = subprocess.run([
                 "ansible",
-                hostname,
-                "-i", f"{hostname},",
+                ip_address,
+                "-i", f"{ip_address},",
                 "-m", "shell",
                 "-a", command,
                 "-u", user
             ], capture_output=True, text=True, timeout=30)
-            
+            # Traitement de la sortie Ansible pour garder les retours à la ligne
+            if result.returncode == 0:
+                raw_output = result.stdout
+                if ">>" in raw_output:
+                    clean_output = raw_output.split(">>", 1)[1].rstrip()
+                else:
+                    clean_output = raw_output.rstrip()
+            else:
+                clean_output = result.stdout.rstrip() or result.stderr.rstrip()
             results.append({
                 "hostname": hostname,
+                "ip_address": ip_address,
                 "success": result.returncode == 0,
-                "output": result.stdout.strip() or result.stderr.strip(),
+                "output": clean_output,  # Retours à la ligne préservés
                 "return_code": result.returncode
             })
-            
         except subprocess.TimeoutExpired:
             results.append({
                 "hostname": hostname,
+                "ip_address": ip_address,
                 "success": False,
                 "output": "Commande timeout (30s)",
                 "return_code": -1
@@ -267,6 +286,7 @@ async def execute_command(request: dict):
         except Exception as e:
             results.append({
                 "hostname": hostname,
+                "ip_address": ip_address,
                 "success": False,
                 "output": f"Erreur: {str(e)}",
                 "return_code": -1

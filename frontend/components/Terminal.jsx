@@ -54,7 +54,7 @@ const Terminal = ({
     };
 
     const clearTerminal = () => {
-        // Vous pouvez ajouter une fonction pour vider le terminal
+
     };
 
     return (
@@ -85,7 +85,10 @@ const Terminal = ({
                         {line.machine && (
                             <span className="text-blue-400">[{line.machine}] </span>
                         )}
-                        <span>{line.message}</span>
+                        {/* Utiliser pre pour préserver les retours à la ligne */}
+                        <pre className="whitespace-pre-wrap inline font-mono">
+                            {line.message}
+                        </pre>
                         {line.machines && (
                             <span className="text-gray-400"> → {line.machines.join(', ')}</span>
                         )}
