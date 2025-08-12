@@ -126,6 +126,10 @@ const Card = ({ hostname, metrics, health }) => {
                             <span className="text-white/70">Disque :</span>
                             <span className="font-medium">{metrics?.disk_usage ?? "-"}%</span>
                         </div>
+                        <div className="flex justify-between">
+                            <span className="text-white/70">Uptime :</span>
+                            <span className="font-medium">{isOnline ? (metrics?.uptime ?? "-") : "Off"}</span>
+                        </div>
                     </div>
 
                     {/* Bouton reboot en bas à gauche */}

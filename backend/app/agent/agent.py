@@ -1,7 +1,7 @@
 import requests
 import psutil
 import socket
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import os
 import netifaces
@@ -34,6 +34,27 @@ def get_ip_address():
     except Exception as e:
         print(f"Erreur lors du scan des interfaces: {e}")
 
+def get_uptime():
+    try:
+        boot_time = psutil.boot_time()
+        current_time = datetime.now().timestamp()
+        uptime_seconds = int(current_time - boot_time)
+        
+        days = uptime_seconds // 86400
+        hours = (uptime_seconds % 86400) // 3600
+        minutes = (uptime_seconds % 3600) // 60
+
+        uptime_format = []
+        if days > 0:
+            uptime_format.append(f"{days} jour{'s' if days > 1 else ''}")
+        if hours > 0:
+            uptime_format.append(f"{hours} heure{'s' if hours > 1 else ''}")
+        if minutes > 0:
+            uptime_format.append(f"{minutes} minute{'s' if minutes > 1 else ''}")
+        return ", ".join(uptime_format) if uptime_format else "moins d'une minute"
+    except Exception as e:
+        return f"Erreur: {e}"
+
 def get_metrics():
     cpu_utilization = psutil.cpu_percent(interval=1)
     memory_utilization = psutil.virtual_memory().percent
@@ -45,7 +66,8 @@ def get_metrics():
         "disk_usage": disk_usage,
         "ip_address": get_ip_address(),
         "hostname": socket.gethostname(),
-        "last_seen": datetime.utcnow().isoformat()
+        "last_seen": datetime.utcnow().isoformat(),
+        "uptime": get_uptime()
     }
     return metrics
 

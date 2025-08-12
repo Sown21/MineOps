@@ -14,6 +14,7 @@ class MetricsDB(Base):
     memory_utilization: Mapped[float]
     disk_usage: Mapped[float]
     last_seen: Mapped[datetime] = mapped_column(default=datetime)
+    uptime: Mapped[str]
 
     def as_dict(self):
         return {
@@ -24,4 +25,5 @@ class MetricsDB(Base):
             "memory_utilization": self.memory_utilization,
             "disk_usage": self.disk_usage,
             "last_seen": self.last_seen,
+            "uptime": self.uptime,
         }

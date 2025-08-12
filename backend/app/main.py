@@ -232,15 +232,12 @@ async def reboot_device(ip_address: str):
 async def execute_command(request: dict):
     command = request.get("command")
     hostnames = request.get("hostnames", [])
-    
     if not command or not hostnames:
         raise HTTPException(
             status_code=400, 
             detail="Command and hostnames are required"
         )
-    
     results = []
-    
     for hostname in hostnames:
         user = get_user_for_ip(hostname) or "root"
         try:
@@ -274,5 +271,11 @@ async def execute_command(request: dict):
                 "output": f"Erreur: {str(e)}",
                 "return_code": -1
             })
-    
     return {"results": results}
+
+@app.get("/uptime/{hostname}", tags=["Health"])
+def get_hostname_uptime(hostname: str, db: Session = Depends(get_db)):
+    metrics = db.query(MetricsDB).filter(MetricsDB.hostname == hostname).order_by(MetricsDB.last_seen.desc()).first()
+    if not metrics:
+        raise HTTPException(status_code=404, detail=f"Aucune données pour {hostname}")
+    return {"hostname": hostname, "uptime": metrics.uptime}

@@ -9,6 +9,7 @@ class MetricsIn(BaseModel):
     memory_utilization: float
     disk_usage: float
     last_seen: datetime
+    uptime: str
 
 class MetricsOut(BaseModel):
     id: int
@@ -18,6 +19,7 @@ class MetricsOut(BaseModel):
     memory_utilization: float
     disk_usage: float
     last_seen: datetime
+    uptime: str
 
     @field_serializer("last_seen")
     def serialize_last_seen(self, value: datetime, _info):
