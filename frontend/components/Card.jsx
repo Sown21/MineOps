@@ -147,7 +147,7 @@ const Card = ({ hostname, metrics, health }) => {
                                 !isOnline ? "Machine hors ligne" : "Redémarrer la machine"
                             }
                         >
-                            {isRebooting ? "🔄 Redémarrage..." : "⚡ Reboot"}
+                            {isRebooting ? "🔄 Redémarrage..." : "Redémarrer"}
                         </button>
                     </div>
                 </div>
