@@ -120,11 +120,11 @@ const Card = ({ hostname, metrics, health }) => {
                         </div>
                         <div className="flex justify-between">
                             <span className="text-white/70">Mémoire :</span>
-                            <span className="font-medium">{metrics?.memory_utilization ?? "-"}%</span>
+                            <span className={`font-medium ${metrics.memory_utilization > 90 ? "text-red-600" : "text-white/70"}`}>{metrics?.memory_utilization ?? "-"}%</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-white/70">Disque :</span>
-                            <span className="font-medium">{metrics?.disk_usage ?? "-"}%</span>
+                            <span className={`font-medium ${metrics.disk_usage > 90 ? "text-red-600" : "text-white/70"}`}>{metrics?.disk_usage ?? "-"}%</span>
                         </div>
                         <div className="flex justify-between">
                             <span className="text-white/70">Uptime :</span>
