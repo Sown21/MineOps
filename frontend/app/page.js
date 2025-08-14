@@ -198,7 +198,7 @@ export default function Home() {
                   1
                 </div>
                 <h3 className="text-white font-semibold text-lg mb-2">Installation</h3>
-                <p className="text-white/70">Ajoutez vos machines via le dashboard avec l'installateur automatique</p>
+                <p className="text-white/70">Ajoutez vos machines via le dashboard avec l&apos;installateur automatique</p>
               </div>
               
               <div className="glass-card p-6">
