@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import SessionLocal
 from app.schemas import MetricsIn, MetricsOut, InstallMiner
@@ -11,6 +11,12 @@ from datetime import timedelta, datetime, timezone
 import subprocess
 import os
 import json
+import uuid
+import threading
+import time
+from typing import Dict, Optional
+from app.ssh_manager import ssh_manager, SSHSession
+import asyncio
 
 app = FastAPI(title="Metrics MineOps", 
               description="API MineOps",
@@ -20,6 +26,8 @@ app = FastAPI(title="Metrics MineOps",
                   {"name": "Health", "description": "Statut des agents"},
                   {"name": "Installation", "description": "Installation/Setup Machine"},
                   {"name": "Device state", "description": "Commande pour gérer l'état de la machine"},
+                  {"name": "SSH", "description": "Sessions SSH"}, 
+                  {"name": "Commands", "description": "Exécution de commandes"},  
               ])
 
 app.add_middleware(
@@ -181,8 +189,6 @@ def get_metrics_history(
         "metrics": [m.as_dict() for m in metrics]
     }
 
-from fastapi import HTTPException
-
 @app.post("/add-miner", tags=["Installation"])
 async def add_miner(data: InstallMiner):
     ip = data.ip_address
@@ -299,3 +305,192 @@ def get_hostname_uptime(hostname: str, db: Session = Depends(get_db)):
     if not metrics:
         raise HTTPException(status_code=404, detail=f"Aucune données pour {hostname}")
     return {"hostname": hostname, "uptime": metrics.uptime}
+
+# Configuration des sessions SSH - SUPPRIMÉ (utilise maintenant ssh_manager)
+# SESSION_TIMEOUT = 3600  # 1 heure
+# CLEANUP_INTERVAL = 600  # 10 minutes
+# MAX_SESSIONS_PER_HOST = 10
+
+# Stockage des sessions SSH en mémoire - SUPPRIMÉ (utilise maintenant ssh_manager)
+# ssh_sessions: Dict[str, Dict] = {}
+
+@app.post("/ssh/create-session", tags=["SSH"])
+async def create_ssh_session(request: dict, db: Session = Depends(get_db)):
+    hostname = request.get("hostname")
+    ip_address = request.get("ip_address")
+    
+    print(f"🚀 Creating real SSH session for {hostname} ({ip_address})")
+    
+    if not hostname or not ip_address:
+        raise HTTPException(
+            status_code=400,
+            detail="Hostname and ip_address are required"
+        )
+    
+    # Vérifier que la machine existe
+    metrics = db.query(MetricsDB).filter(MetricsDB.hostname == hostname).order_by(MetricsDB.last_seen.desc()).first()
+    if not metrics:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Hostname {hostname} not found in database"
+        )
+    
+    user = get_user_for_ip(ip_address) or "root"
+    
+    # Créer une vraie session SSH
+    session = await ssh_manager.create_session(hostname, ip_address, user)
+    
+    if not session:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create SSH session to {ip_address}"
+        )
+    
+    print(f"✅ Real SSH session created: {session.session_id[:8]}...")
+    
+    return {
+        "session_id": session.session_id,
+        "hostname": hostname,
+        "ip_address": ip_address,
+        "user": user,
+        "status": "connected",
+        "type": "interactive"
+    }
+
+@app.websocket("/ssh/ws/{session_id}")
+async def ssh_websocket(websocket: WebSocket, session_id: str):
+    """WebSocket pour terminal SSH interactif"""
+    await websocket.accept()
+    
+    session = ssh_manager.get_session(session_id)
+    if not session:
+        await websocket.send_text(json.dumps({
+            "type": "error",
+            "message": "Session SSH non trouvée"
+        }))
+        await websocket.close()
+        return
+    
+    if session.status != "connected":
+        await websocket.send_text(json.dumps({
+            "type": "error", 
+            "message": f"Session SSH non connectée (status: {session.status})"
+        }))
+        await websocket.close()
+        return
+    
+    # Associer le WebSocket à la session
+    session.websocket = websocket
+    
+    # Démarrer la lecture de la sortie SSH
+    session.read_task = asyncio.create_task(session.read_output())
+    
+    try:
+        # Message de bienvenue
+        await websocket.send_text(json.dumps({
+            "type": "output",
+            "data": f"\r\n🚀 Terminal SSH connecté à {session.hostname} ({session.ip_address})\r\n"
+        }))
+        
+        # Boucle de réception des commandes
+        async for message in websocket.iter_text():
+            try:
+                print(f"📨 Message reçu pour session {session_id[:8]}...: {message}")
+                
+                # Essayer de parser comme JSON
+                try:
+                    data = json.loads(message)
+                    if data["type"] == "input":
+                        # Envoyer la commande au shell SSH
+                        print(f"📤 Envoi commande SSH: {repr(data['data'])}")
+                        await session.send_command(data["data"])
+                        
+                    elif data["type"] == "resize":
+                        # Redimensionner le terminal
+                        session.resize_terminal(data["cols"], data["rows"])
+                        
+                except json.JSONDecodeError:
+                    # Message texte simple (pour compatibilité)
+                    print(f"📤 Envoi message texte SSH: {repr(message)}")
+                    await session.send_command(message)
+                    
+            except Exception as e:
+                print(f"❌ Erreur traitement message WebSocket: {e}")
+                await websocket.send_text(json.dumps({
+                    "type": "error",
+                    "message": f"Erreur traitement message: {str(e)}"
+                }))
+                
+    except WebSocketDisconnect:
+        print(f"WebSocket disconnected for session {session_id[:8]}...")
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+    finally:
+        # Nettoyer la session
+        if session.read_task:
+            session.read_task.cancel()
+        session.websocket = None
+
+@app.post("/ssh/close-session", tags=["SSH"])
+async def close_ssh_session(request: dict):
+    session_id = request.get("session_id")
+    
+    if not session_id:
+        raise HTTPException(
+            status_code=400,
+            detail="session_id is required"
+        )
+    
+    session = ssh_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(
+            status_code=404,
+            detail="Session SSH non trouvée"
+        )
+    
+    ssh_manager.close_session(session_id)
+    
+    return {
+        "session_id": session_id,
+        "status": "closed"
+    }
+
+@app.get("/ssh/sessions", tags=["SSH"])
+async def list_ssh_sessions():
+    """Liste toutes les sessions SSH actives"""
+    sessions = {}
+    for session_id, session in ssh_manager.sessions.items():
+        sessions[session_id] = {
+            "hostname": session.hostname,
+            "ip_address": session.ip_address,
+            "user": session.user,
+            "status": session.status,
+            "created_at": session.created_at.isoformat(),
+            "last_used": session.last_used.isoformat()
+        }
+    
+    return {
+        "sessions": sessions,
+        "total": len(sessions)
+    }
+
+# Nettoyer périodiquement les sessions SSH
+async def cleanup_ssh_sessions():
+    """Nettoie les sessions SSH expirées"""
+    while True:
+        try:
+            removed = ssh_manager.cleanup_old_sessions()
+            if removed > 0:
+                print(f"🧹 {removed} sessions SSH expirées nettoyées")
+        except Exception as e:
+            print(f"❌ Erreur nettoyage SSH: {e}")
+        
+        await asyncio.sleep(600)  # 10 minutes
+
+# Démarrer le nettoyage des sessions SSH
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(cleanup_ssh_sessions())
+    print("🚀 Gestionnaire SSH interactif démarré")
+
+

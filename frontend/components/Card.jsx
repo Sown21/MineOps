@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { useState } from "react";
 import { rebootDevice } from "@/services/device";
+import InteractiveSSHTerminal from "./InteractiveSSHTerminal";
 
 const Card = ({ hostname, metrics, health }) => {
     const isOnline = health?.status === "online";
     const [isRebooting, setIsRebooting] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [showSSHTerminal, setShowSSHTerminal] = useState(false);
     const [rebootStatus, setRebootStatus] = useState(null); // null, 'success', 'error'
     const [rebootMessage, setRebootMessage] = useState("");
 
@@ -62,6 +64,12 @@ const Card = ({ hostname, metrics, health }) => {
 
     const cancelReboot = () => {
         setShowConfirm(false);
+    };
+
+    const handleSSHClick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setShowSSHTerminal(true);
     };
 
     return (
@@ -132,12 +140,12 @@ const Card = ({ hostname, metrics, health }) => {
                         </div>
                     </div>
 
-                    {/* Bouton reboot en bas à gauche */}
-                    <div className="flex justify-start">
+                    {/* Boutons d'actions */}
+                    <div className="flex gap-2">
                         <button
                             onClick={handleRebootClick}
                             disabled={!isOnline || isRebooting}
-                            className={`glass-button text-sm px-3 py-2 ${
+                            className={`glass-button text-sm px-3 py-2 flex-1 ${
                                 !isOnline || isRebooting
                                     ? "opacity-50 cursor-not-allowed"
                                     : "hover:bg-red-500/20 hover:border-red-400"
@@ -147,11 +155,33 @@ const Card = ({ hostname, metrics, health }) => {
                                 !isOnline ? "Machine hors ligne" : "Redémarrer la machine"
                             }
                         >
-                            {isRebooting ? "🔄 Redémarrage..." : "Redémarrer"}
+                            {isRebooting ? "Redémarrage..." : "Redémarrer"}
+                        </button>
+                        
+                        <button
+                            onClick={handleSSHClick}
+                            disabled={!isOnline}
+                            className={`glass-button text-sm px-3 py-2 flex-1 ${
+                                !isOnline
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : "hover:bg-blue-500/20 hover:border-blue-400"
+                            }`}
+                            title={!isOnline ? "Machine hors ligne" : "Ouvrir terminal SSH"}
+                        >
+                            🖥️ SSH
                         </button>
                     </div>
                 </div>
             </Link>
+
+            {/* Terminal SSH Modal */}
+            {showSSHTerminal && (
+                <InteractiveSSHTerminal
+                    hostname={hostname}
+                    ipAddress={metrics?.ip_address}
+                    onClose={() => setShowSSHTerminal(false)}
+                />
+            )}
 
             {/* Modal de confirmation - ne s'affiche que si showConfirm = true */}
             {showConfirm && !isRebooting && ( // NE PAS AFFICHER SI REBOOT DÉJÀ EN COURS
